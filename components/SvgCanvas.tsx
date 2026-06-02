@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Polyline, LineEntity, Vertex } from '@/lib/dxf/parser';
+import { Vertex, LineEntity } from '@/lib/dxf/parser';
+import { ClassifiedWall, bboxOf } from '@/lib/dxf/analyzer';
 
-interface LocusPoint {
+export interface LocusPoint {
   x: number;
   y: number;
   color: string;
@@ -11,11 +12,12 @@ interface LocusPoint {
 }
 
 interface SvgCanvasProps {
-  polylines: Polyline[];
+  walls: ClassifiedWall[];
   lineEntities: LineEntity[];
   points?: LocusPoint[];
-  bearingWallIds?: Set<number>; // For Phase 3+ bearing walls shading
-  onResetView?: () => void;
+  hoveredWallId: number | null;
+  onHoverWall: (id: number | null) => void;
+  showCenterlines?: boolean;
 }
 
 interface ViewBox {
@@ -25,46 +27,36 @@ interface ViewBox {
   h: number;
 }
 
-function bboxOf(points: Vertex[]) {
-  if (!points || points.length === 0) return null;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const p of points) {
-    if (p.x < minX) minX = p.x;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.y > maxY) maxY = p.y;
-  }
-  return { minX, maxX, minY, maxY };
-}
-
 export default function SvgCanvas({
-  polylines,
+  walls,
   lineEntities,
   points = [],
-  bearingWallIds = new Set(),
+  hoveredWallId,
+  onHoverWall,
+  showCenterlines = false,
 }: SvgCanvasProps) {
   const [viewBox, setViewBox] = useState<ViewBox | null>(null);
   const [originalViewBox, setOriginalViewBox] = useState<ViewBox | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [hoveredEntity, setHoveredEntity] = useState<{ type: string; layer: string; vertexCount?: number } | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const dragStart = useRef<{ x: number; y: number; vb: ViewBox } | null>(null);
 
-  // Filter entities on layers containing "wall" (case-insensitive) as per reference
-  const wallPolylines = useMemo(() => {
-    return polylines.filter(p => /wall/i.test(p.layer));
-  }, [polylines]);
-
+  // Filter extra lines
   const wallLines = useMemo(() => {
     return lineEntities.filter(l => /wall/i.test(l.layer));
   }, [lineEntities]);
 
-  // Compute view box on load or when polylines change
+  // Compute view box on load or when walls change
   useEffect(() => {
-    const allVertices = wallPolylines.flatMap(wall => wall.vertices);
-    // Also include line end points for accurate bounding box
+    if (walls.length === 0) {
+      setViewBox(null);
+      setOriginalViewBox(null);
+      return;
+    }
+
+    const allVertices = walls.flatMap(wall => wall.vertices);
     wallLines.forEach(l => {
       allVertices.push({ x: l.x1, y: l.y1 });
       allVertices.push({ x: l.x2, y: l.y2 });
@@ -87,7 +79,7 @@ export default function SvgCanvas({
       setViewBox(null);
       setOriginalViewBox(null);
     }
-  }, [wallPolylines, wallLines]);
+  }, [walls, wallLines]);
 
   const resetView = useCallback(() => {
     if (originalViewBox) {
@@ -100,7 +92,6 @@ export default function SvgCanvas({
       if (!prev) return null;
       const newW = prev.w * factor;
       const newH = prev.h * factor;
-      // Zoom centered on the middle of the current view
       const newX = prev.x + (prev.w - newW) / 2;
       const newY = prev.y + (prev.h - newH) / 2;
       return { x: newX, y: newY, w: newW, h: newH };
@@ -149,7 +140,7 @@ export default function SvgCanvas({
     const ctm = svg.getScreenCTM();
     if (ctm) {
       const svgPt = pt.matrixTransform(ctm.inverse());
-      setMousePos({ x: svgPt.x, y: -svgPt.y }); // Store as original CAD space (y flipped back)
+      setMousePos({ x: svgPt.x, y: -svgPt.y });
     }
 
     if (!dragging || !dragStart.current || !viewBox) return;
@@ -174,10 +165,11 @@ export default function SvgCanvas({
   };
 
   // Helper values for dynamic sizing
-  const dotRadius = viewBox ? Math.max(1.5, viewBox.w / 180) : 4;
-  const strokeWidth = viewBox ? Math.max(0.3, viewBox.w / 800) : 0.5;
+  const dotRadius = viewBox ? Math.max(1.8, viewBox.w / 160) : 4;
+  const strokeWidth = viewBox ? Math.max(0.4, viewBox.w / 700) : 0.6;
+  const highlightWidth = strokeWidth * 2.5;
 
-  if (wallPolylines.length === 0 && wallLines.length === 0) {
+  if (walls.length === 0 && wallLines.length === 0) {
     return (
       <div style={{
         display: 'flex',
@@ -199,7 +191,6 @@ export default function SvgCanvas({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* SVG Canvas Container */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <svg
           ref={svgRef}
@@ -218,10 +209,10 @@ export default function SvgCanvas({
           onMouseLeave={onMouseUp}
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Grid Background Pattern */}
+          {/* Grid Pattern */}
           <defs>
             <pattern id="canvas-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-              <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(42,38,31,0.02)" strokeWidth="1" />
+              <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(42,38,31,0.03)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect
@@ -234,24 +225,56 @@ export default function SvgCanvas({
           />
 
           {/* Render Wall Polygons */}
-          {wallPolylines.map((w, id) => {
-            const isBearing = bearingWallIds.has(id);
+          {walls.map((w) => {
+            const isHovered = hoveredWallId === w.id;
             return (
               <polygon
-                key={`w-${id}`}
+                key={`w-${w.id}`}
                 points={w.vertices.map(v => `${v.x},${-v.y}`).join(' ')}
-                fill={isBearing ? 'var(--paper-dark)' : 'none'}
-                fillOpacity={isBearing ? 0.85 : 0}
-                stroke="var(--accent-dark)"
-                strokeWidth={strokeWidth}
+                fill={w.bearing ? '#c8c4b5' : 'none'}
+                fillOpacity={w.bearing ? 0.75 : 0}
+                stroke={isHovered ? 'var(--accent)' : 'var(--accent-dark)'}
+                strokeWidth={isHovered ? highlightWidth : strokeWidth}
                 vectorEffect="non-scaling-stroke"
                 style={{
-                  transition: 'fill-opacity 0.2s ease-in-out',
+                  transition: 'fill-opacity 0.2s, stroke 0.1s',
+                  cursor: 'pointer'
                 }}
-                onMouseEnter={() => setHoveredEntity({ type: 'Polyline', layer: w.layer, vertexCount: w.vertices.length })}
-                onMouseLeave={() => setHoveredEntity(null)}
+                onMouseEnter={() => onHoverWall(w.id)}
+                onMouseLeave={() => onHoverWall(null)}
               />
             );
+          })}
+
+          {/* Render Centerlines/Segments Overlay if toggled */}
+          {showCenterlines && walls.map((w) => {
+            const isHovered = hoveredWallId === w.id;
+            return w.segments.map((seg, sIdx) => {
+              const runsX = seg.longAxis === 'X';
+              const x1 = runsX ? seg.endpointMin : seg.centerline;
+              const y1 = runsX ? seg.centerline : seg.endpointMin;
+              const x2 = runsX ? seg.endpointMax : seg.centerline;
+              const y2 = runsX ? seg.centerline : seg.endpointMax;
+
+              return (
+                <g key={`w-${w.id}-seg-${sIdx}`} style={{ pointerEvents: 'none' }}>
+                  {/* Glowing line for segment centerline */}
+                  <line
+                    x1={x1}
+                    y1={-y1}
+                    x2={x2}
+                    y2={-y2}
+                    stroke="var(--accent)"
+                    strokeWidth={strokeWidth * 2}
+                    strokeOpacity={isHovered ? 0.9 : 0.6}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {/* Endcaps for centerline */}
+                  <circle cx={x1} cy={-y1} r={strokeWidth * 2.5} fill="var(--accent)" vectorEffect="non-scaling-stroke" />
+                  <circle cx={x2} cy={-y2} r={strokeWidth * 2.5} fill="var(--accent)" vectorEffect="non-scaling-stroke" />
+                </g>
+              );
+            });
           })}
 
           {/* Render Extra Lines */}
@@ -266,8 +289,7 @@ export default function SvgCanvas({
               strokeWidth={strokeWidth}
               strokeDasharray="4 3"
               vectorEffect="non-scaling-stroke"
-              onMouseEnter={() => setHoveredEntity({ type: 'Extra Line', layer: l.layer })}
-              onMouseLeave={() => setHoveredEntity(null)}
+              style={{ opacity: 0.5 }}
             />
           ))}
 
@@ -280,7 +302,7 @@ export default function SvgCanvas({
                 r={dotRadius}
                 fill={p.color || 'var(--accent)'}
                 stroke="var(--foreground)"
-                strokeWidth={strokeWidth * 0.7}
+                strokeWidth={strokeWidth * 0.8}
                 vectorEffect="non-scaling-stroke"
               />
               {p.label && (
@@ -291,7 +313,7 @@ export default function SvgCanvas({
                   fill="var(--foreground)"
                   style={{
                     fontFamily: 'var(--font-mono), monospace',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     pointerEvents: 'none',
                     userSelect: 'none',
                   }}
@@ -303,35 +325,49 @@ export default function SvgCanvas({
           ))}
         </svg>
 
-        {/* Hover / Status Overlay */}
+        {/* Floating Tooltips & Controls Overlay */}
         <div style={{
           position: 'absolute',
           bottom: '1rem',
           left: '1rem',
           backgroundColor: 'var(--paper-light)',
           border: '1px solid var(--foreground)',
-          padding: '0.5rem 0.75rem',
+          padding: '0.65rem 0.9rem',
           display: 'flex',
           flexDirection: 'column',
           gap: '0.25rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
           pointerEvents: 'none',
-          maxWidth: '240px'
+          maxWidth: '260px'
         }}>
-          {hoveredEntity ? (
-            <>
-              <div className="mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--accent)' }}>
-                {hoveredEntity.type}
-              </div>
-              <div className="mono" style={{ fontSize: '0.75rem', fontWeight: 600, wordBreak: 'break-all' }}>
-                {hoveredEntity.layer}
-              </div>
-              {hoveredEntity.vertexCount !== undefined && (
-                <div className="mono" style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>
-                  Vertices: {hoveredEntity.vertexCount}
-                </div>
-              )}
-            </>
+          {hoveredWallId !== null && walls[hoveredWallId] ? (
+            (() => {
+              const w = walls[hoveredWallId];
+              return (
+                <>
+                  <div className="mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 600 }}>
+                    Wall #{w.id} ({w.bearing ? 'Bearing' : 'Non-bearing'})
+                  </div>
+                  <div className="mono" style={{ fontSize: '0.75rem', fontWeight: 600, wordBreak: 'break-all' }}>
+                    {w.layer}
+                  </div>
+                  <div className="mono" style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>
+                    Vertices: {w.vertices.length} · Segments: {w.segments.length}
+                  </div>
+                  {w.bbox && (
+                    <div style={{ borderTop: '1px solid rgba(42,38,31,0.1)', paddingTop: '0.25rem', marginTop: '0.1rem' }}>
+                      <div className="mono" style={{ fontSize: '0.65rem', color: 'var(--ink-disabled)' }}>Bounding Box:</div>
+                      <div className="mono" style={{ fontSize: '0.65rem', color: 'var(--foreground)' }}>
+                        X: [{w.bbox.minX.toFixed(1)}, {w.bbox.maxX.toFixed(1)}]
+                      </div>
+                      <div className="mono" style={{ fontSize: '0.65rem', color: 'var(--foreground)' }}>
+                        Y: [{w.bbox.minY.toFixed(1)}, {w.bbox.maxY.toFixed(1)}]
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()
           ) : (
             <>
               <div className="mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--ink-disabled)' }}>
@@ -355,7 +391,7 @@ export default function SvgCanvas({
           )}
         </div>
 
-        {/* Floating Zoom / Pan Toolbar */}
+        {/* Floating Zoom Toolbar */}
         <div style={{
           position: 'absolute',
           top: '1rem',
@@ -366,7 +402,7 @@ export default function SvgCanvas({
           backgroundColor: 'var(--paper-light)',
           border: '1px solid var(--foreground)',
           padding: '0.35rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
         }}>
           <button
             onClick={() => zoom(0.8)}
@@ -441,7 +477,7 @@ export default function SvgCanvas({
 
       {/* Legend / Canvas Footer */}
       <div style={{
-        padding: '0.75rem 1rem',
+        padding: '0.65rem 1rem',
         borderTop: '1px solid var(--foreground)',
         backgroundColor: 'var(--paper-dark)',
         display: 'flex',
@@ -449,26 +485,26 @@ export default function SvgCanvas({
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '1rem',
-        fontSize: '0.75rem'
+        fontSize: '0.72rem'
       }}>
         <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ display: 'inline-block', width: '14px', height: '10px', border: '1px solid var(--accent-dark)' }} />
-            <span className="mono" style={{ color: 'var(--ink-muted)' }}>Raw Wall Polygon</span>
+            <span style={{ display: 'inline-block', width: '14px', height: '10px', backgroundColor: '#c8c4b5', border: '1px solid var(--accent-dark)' }} />
+            <span className="mono" style={{ color: 'var(--ink-muted)' }}>Classified Bearing Wall</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ display: 'inline-block', width: '14px', height: '1px', borderTop: '1.5px dashed var(--accent-dark)' }} />
-            <span className="mono" style={{ color: 'var(--ink-muted)' }}>Extra Line (Dashed/Layout)</span>
+            <span style={{ display: 'inline-block', width: '14px', height: '10px', border: '1px solid var(--accent-dark)' }} />
+            <span className="mono" style={{ color: 'var(--ink-muted)' }}>Non-Bearing Wall Boundary</span>
           </div>
-          {bearingWallIds.size > 0 && (
+          {showCenterlines && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ display: 'inline-block', width: '14px', height: '10px', backgroundColor: 'var(--paper-dark)', border: '1px solid var(--accent-dark)' }} />
-              <span className="mono" style={{ color: 'var(--ink-muted)' }}>Classified Bearing Wall</span>
+              <span style={{ display: 'inline-block', width: '14px', height: '2px', backgroundColor: 'var(--accent)' }} />
+              <span className="mono" style={{ color: 'var(--ink-muted)' }}>Precomputed Centerline Segment</span>
             </div>
           )}
         </div>
         <div className="mono" style={{ color: 'var(--ink-disabled)' }}>
-          Y-Axis: UP (Flipped) · Scale: 1 unit = 1 inch
+          Scale: 1 unit = 1 inch · Y: UP (flipped for SVG)
         </div>
       </div>
     </div>
