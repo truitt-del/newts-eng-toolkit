@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { parseDXF, ParsedDXF } from '@/lib/dxf/parser';
+import SvgCanvas from '@/components/SvgCanvas';
 
 export default function Home() {
   const [fileStats, setFileStats] = useState<ParsedDXF | null>(null);
@@ -78,10 +79,10 @@ export default function Home() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div className="mono" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--accent)' }}>
-              CAD-AI Sandbox · Phase 1
+              CAD-AI Sandbox · Phase 2
             </div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 600, letterSpacing: '-0.02em', marginTop: '0.25rem' }}>
-              DXF Parser Verification
+              Interactive Plan Canvas
             </h1>
           </div>
         </div>
@@ -90,13 +91,14 @@ export default function Home() {
       {/* MAIN CONTAINER */}
       <main style={{
         flex: 1,
-        maxWidth: '800px',
+        maxWidth: fileStats ? '1200px' : '800px',
         width: '100%',
         margin: '2.5rem auto',
         padding: '0 1.5rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '2rem'
+        gap: '2rem',
+        transition: 'max-width 0.3s ease-in-out'
       }}>
         
         {/* DROPZONE */}
@@ -164,6 +166,21 @@ export default function Home() {
                 Active File
               </div>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{fileName}</h2>
+            </div>
+
+            {/* INTERACTIVE SVG PLAN CANVAS */}
+            <div style={{
+              height: '550px',
+              border: '1px solid var(--foreground)',
+              backgroundColor: 'var(--background)',
+              position: 'relative',
+              boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.03)',
+              overflow: 'hidden'
+            }}>
+              <SvgCanvas
+                polylines={fileStats.polylines}
+                lineEntities={fileStats.lineEntities}
+              />
             </div>
 
             {/* STATS GRID */}
