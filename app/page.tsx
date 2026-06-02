@@ -51,8 +51,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'prompts' | 'payload' | 'inspector'>('prompts');
   const [showCenterlines, setShowCenterlines] = useState<boolean>(true);
 
-  // Model parameters
-  const [provider, setProvider] = useState<'google' | 'anthropic'>('google');
+  const provider = 'google';
   const [model, setModel] = useState<string>('gemini-2.5-flash');
   const [payloadMode, setPayloadMode] = useState<'raw' | 'precomputed'>('precomputed');
 
@@ -74,14 +73,12 @@ export default function Home() {
   // Auto load saved settings on mount
   useEffect(() => {
     try {
-      const savedProvider = localStorage.getItem('provider');
       const savedModel = localStorage.getItem('model');
       const savedPayloadMode = localStorage.getItem('payloadMode');
       const savedSystem = localStorage.getItem('systemPrompt');
       const savedUser = localStorage.getItem('userPrompt');
       const savedShowCenterlines = localStorage.getItem('showCenterlines');
 
-      if (savedProvider) setProvider(savedProvider as any);
       if (savedModel) setModel(savedModel);
       if (savedPayloadMode) setPayloadMode(savedPayloadMode as any);
       if (savedSystem) setSystemPrompt(savedSystem);
@@ -91,15 +88,6 @@ export default function Home() {
       console.warn('Failed to load storage values on mount:', e);
     }
   }, []);
-
-  // Sync provider choices & change default model automatically
-  const handleProviderChange = (newProvider: 'google' | 'anthropic') => {
-    setProvider(newProvider);
-    const defaultModel = newProvider === 'google' ? 'gemini-2.5-flash' : 'claude-3-5-sonnet-latest';
-    setModel(defaultModel);
-    localStorage.setItem('provider', newProvider);
-    localStorage.setItem('model', defaultModel);
-  };
 
   const handleModelChange = (newModel: string) => {
     setModel(newModel);
@@ -420,26 +408,6 @@ export default function Home() {
               {/* MODEL SELECTORS */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>Provider</label>
-                  <select
-                    value={provider}
-                    onChange={(e) => handleProviderChange(e.target.value as any)}
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'var(--paper-light)',
-                      border: '1px solid var(--foreground)',
-                      padding: '0.4rem 0.5rem',
-                      fontFamily: 'inherit',
-                      fontSize: '0.75rem',
-                      outline: 'none',
-                    }}
-                  >
-                    <option value="google">Google Gemini</option>
-                    <option value="anthropic">Anthropic Claude</option>
-                  </select>
-                </div>
-
-                <div>
                   <label className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>Model ID</label>
                   <select
                     value={model}
@@ -454,24 +422,11 @@ export default function Home() {
                       outline: 'none',
                     }}
                   >
-                    {provider === 'google' ? (
-                      <>
-                        <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="claude-3-5-sonnet-latest">claude-3-5-sonnet</option>
-                        <option value="claude-3-5-haiku-latest">claude-3-5-haiku</option>
-                        <option value="claude-3-opus-latest">claude-3-opus</option>
-                      </>
-                    )}
+                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
                   </select>
                 </div>
-              </div>
 
-              {/* ENGINE LAYER AND PREVIEW SEGMENTS SWITCHES */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', alignItems: 'center' }}>
                 <div>
                   <label className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>Payload Boundary</label>
                   <select
@@ -483,7 +438,7 @@ export default function Home() {
                       border: '1px solid var(--foreground)',
                       padding: '0.4rem 0.5rem',
                       fontFamily: 'inherit',
-                      fontSize: '0.72rem',
+                      fontSize: '0.75rem',
                       outline: 'none',
                     }}
                   >
@@ -491,26 +446,27 @@ export default function Home() {
                     <option value="raw">Raw Wall Vertices</option>
                   </select>
                 </div>
+              </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'flex-end' }}>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    paddingBottom: '0.45rem'
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={showCenterlines}
-                      onChange={(e) => setShowCenterlines(e.target.checked)}
-                      style={{ accentColor: 'var(--accent)' }}
-                    />
-                    <span className="mono" style={{ color: 'var(--foreground)' }}>Show Centerlines</span>
-                  </label>
-                </div>
+              {/* ENGINE LAYER AND PREVIEW SEGMENTS SWITCHES */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  paddingBottom: '0.1rem'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={showCenterlines}
+                    onChange={(e) => setShowCenterlines(e.target.checked)}
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                  <span className="mono" style={{ color: 'var(--foreground)' }}>Show Centerlines</span>
+                </label>
               </div>
 
               {/* ACTION ROW */}
@@ -534,7 +490,7 @@ export default function Home() {
                   onMouseEnter={e => { if(!runLoading) e.currentTarget.style.backgroundColor = '#8c2f1b'; }}
                   onMouseLeave={e => { if(!runLoading) e.currentTarget.style.backgroundColor = 'var(--accent)'; }}
                 >
-                  {runLoading ? 'Evaluating Plan Geometry...' : `Run ${provider === 'google' ? 'Gemini' : 'Claude'} Engine`}
+                  {runLoading ? 'Evaluating Plan Geometry...' : 'Run Gemini Engine'}
                 </button>
 
                 {points.length > 0 && (

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import Anthropic from '@anthropic-ai/sdk';
 
 export const maxDuration = 60; // Vercel Pro timeout bypass
 
@@ -197,71 +196,6 @@ export async function POST(req: NextRequest) {
         points = extractPointsFromJSON(text);
         if (points.length === 0) {
           points = extractPointsFromMarkdown(text);
-        }
-      }
-
-    } else if (provider === 'anthropic') {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        return NextResponse.json({ error: 'ANTHROPIC_API_KEY environment variable is not configured.' }, { status: 500 });
-      }
-
-      const anthropic = new Anthropic({ apiKey });
-
-      const response = await anthropic.messages.create({
-        model: model,
-        max_tokens: 4000,
-        system: system,
-        tools: [{
-          name: 'render_locus_points',
-          description: 'Render the locus points you have identified onto the floor plan view. Call this with the complete list of points.',
-          input_schema: {
-            type: 'object',
-            properties: {
-              points: {
-                type: 'array',
-                description: 'Array of locus points to display on the plan',
-                items: {
-                  type: 'object',
-                  properties: {
-                    x: { type: 'number', description: 'X coordinate in inches' },
-                    y: { type: 'number', description: 'Y coordinate in inches' },
-                    color: { type: 'string', description: 'CSS color name or hex code' },
-                    label: { type: 'string', description: 'Brief label, under 24 chars' },
-                  },
-                  required: ['x', 'y', 'color', 'label'],
-                },
-              },
-            },
-            required: ['points'],
-          },
-        }],
-        tool_choice: { type: 'tool', name: 'render_locus_points' },
-        messages: [{ role: 'user', content: formattedUserPrompt }],
-      });
-
-      // Token usage extraction
-      if (response.usage) {
-        tokensIn = response.usage.input_tokens || 0;
-        tokensOut = response.usage.output_tokens || 0;
-      }
-
-      // Parse contents
-      const debugText = (response.content || []).map((c: any) => {
-        if (c.type === 'text') return c.text;
-        if (c.type === 'tool_use') return `[tool_use: ${c.name}]\n${JSON.stringify(c.input, null, 2)}`;
-        return `[${c.type} block]`;
-      }).join('\n\n');
-      rawResponse = debugText;
-
-      const toolBlock: any = (response.content || []).find((c: any) => c.type === 'tool_use' && c.name === 'render_locus_points');
-      if (toolBlock?.input?.points && Array.isArray(toolBlock.input.points)) {
-        points = toolBlock.input.points.filter((p: any) => typeof p?.x === 'number' && typeof p?.y === 'number');
-      } else {
-        const textContent = (response.content || []).filter((c: any) => c.type === 'text').map((c: any) => c.text).join('\n');
-        points = extractPointsFromJSON(textContent);
-        if (points.length === 0) {
-          points = extractPointsFromMarkdown(textContent);
         }
       }
 
