@@ -52,7 +52,7 @@ export default function Home() {
   const [showCenterlines, setShowCenterlines] = useState<boolean>(true);
 
   const provider = 'google';
-  const [model, setModel] = useState<string>('gemini-2.5-flash');
+  const [model, setModel] = useState<string>('gemini-3.5-flash');
   const [payloadMode, setPayloadMode] = useState<'raw' | 'precomputed'>('precomputed');
 
   // Prompts states
@@ -422,8 +422,14 @@ export default function Home() {
                       outline: 'none',
                     }}
                   >
-                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                    <optgroup label="Next-Generation (Recommended)" style={{ fontStyle: 'normal', color: 'var(--ink)' }}>
+                      <option value="gemini-3.5-flash">gemini-3.5-flash (Fast & Frontier)</option>
+                      <option value="gemini-3.1-pro">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
+                    </optgroup>
+                    <optgroup label="Stable legacy" style={{ fontStyle: 'normal', color: 'var(--ink-muted)' }}>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                      <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                    </optgroup>
                   </select>
                 </div>
 
