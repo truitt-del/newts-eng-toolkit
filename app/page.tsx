@@ -81,7 +81,13 @@ export default function Home() {
       const savedUser = localStorage.getItem('userPrompt');
       const savedShowCenterlines = localStorage.getItem('showCenterlines');
 
-      if (savedModel) setModel(savedModel);
+      const VALID_MODELS = ['gemini-3.5-flash', 'gemini-3.1-pro-preview'];
+      if (savedModel && VALID_MODELS.includes(savedModel)) {
+        setModel(savedModel);
+      } else {
+        setModel('gemini-3.5-flash');
+        localStorage.setItem('model', 'gemini-3.5-flash');
+      }
       if (savedPayloadMode) setPayloadMode(savedPayloadMode as any);
       if (savedSystem) setSystemPrompt(savedSystem);
       if (savedUser) setUserPrompt(savedUser);
@@ -448,14 +454,8 @@ export default function Home() {
                       outline: 'none',
                     }}
                   >
-                    <optgroup label="Next-Generation (Recommended)" style={{ fontStyle: 'normal', color: 'var(--ink)' }}>
                       <option value="gemini-3.5-flash">gemini-3.5-flash (Fast & Frontier)</option>
                       <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
-                    </optgroup>
-                    <optgroup label="Stable legacy" style={{ fontStyle: 'normal', color: 'var(--ink-muted)' }}>
-                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                      <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                    </optgroup>
                   </select>
                 </div>
 
