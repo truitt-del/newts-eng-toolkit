@@ -273,7 +273,21 @@ export default function Home() {
         }),
       });
 
-      const data = await response.json();
+      const rawText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        if (!response.ok) {
+          if (response.status === 504) {
+            throw new Error(
+              `Gateway Timeout (504). The server took too long to respond. This can happen with extremely heavy reasoning workloads on Gemini 3.1 Pro under load, or Vercel routing limits.`
+            );
+          }
+          throw new Error(`Server Error (${response.status}): ${rawText.substring(0, 150)}...`);
+        }
+        throw new Error(`Unable to parse server response. Raw output: ${rawText.substring(0, 150)}...`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP error ${response.status}`);
