@@ -38,8 +38,6 @@ For each opening, emit:
 
 CALL THE TOOL. NO TEXT OUTPUT.`;
 
-const DEFAULT_USER_PROMPT = ``;
-
 export default function Home() {
   const [fileStats, setFileStats] = useState<ParsedDXF | null>(null);
   const [walls, setWalls] = useState<ClassifiedWall[]>([]);
@@ -58,8 +56,7 @@ export default function Home() {
 
   // Prompts states
   const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
-  const [userPrompt, setUserPrompt] = useState<string>(DEFAULT_USER_PROMPT);
-  const [resetArmed, setResetArmed] = useState<{ system: boolean; user: boolean; factory: boolean }>({ system: false, user: false, factory: false });
+  const [resetArmed, setResetArmed] = useState<{ system: boolean; factory: boolean }>({ system: false, factory: false });
   const [saveDefaultSuccess, setSaveDefaultSuccess] = useState<boolean>(false);
 
   // Execution states
@@ -78,7 +75,6 @@ export default function Home() {
       const savedModel = localStorage.getItem('model');
       const savedPayloadMode = localStorage.getItem('payloadMode');
       const savedSystem = localStorage.getItem('systemPrompt');
-      const savedUser = localStorage.getItem('userPrompt');
       const savedShowCenterlines = localStorage.getItem('showCenterlines');
 
       const VALID_MODELS = ['gemini-3.5-flash', 'gemini-3.1-pro-preview'];
@@ -90,7 +86,6 @@ export default function Home() {
       }
       if (savedPayloadMode) setPayloadMode(savedPayloadMode as any);
       if (savedSystem) setSystemPrompt(savedSystem);
-      if (savedUser) setUserPrompt(savedUser);
       if (savedShowCenterlines !== null) setShowCenterlines(savedShowCenterlines === 'true');
     } catch (e) {
       console.warn('Failed to load storage values on mount:', e);
@@ -139,12 +134,6 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [systemPrompt]);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      localStorage.setItem('userPrompt', userPrompt);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [userPrompt]);
 
   useEffect(() => {
     localStorage.setItem('showCenterlines', String(showCenterlines));
@@ -225,7 +214,7 @@ export default function Home() {
           provider,
           model,
           system: systemPrompt,
-          userPrompt,
+          userPrompt: '',
           walls,
           payloadMode,
         }),
@@ -309,14 +298,12 @@ export default function Home() {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div>
-            <div className="mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--accent)' }}>
-              AV Engineering · CAD-AI Sandbox
+            <div className="mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--accent)', fontWeight: 600 }}>
+              NEWT'S TOOLKIT | STRUCTURAL SUITE
             </div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.02em', marginTop: '0.15rem' }}>
-              Engine Verification Sandbox
+              Bearing Line Framer Sandbox
             </h1>
-          </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <label style={{
@@ -438,50 +425,53 @@ export default function Home() {
               flexShrink: 0
             }}>
               {/* MODEL SELECTORS */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>Model ID</label>
-                  <select
-                    value={model}
-                    onChange={(e) => handleModelChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'var(--paper-light)',
-                      border: '1px solid var(--foreground)',
-                      padding: '0.4rem 0.5rem',
-                      fontFamily: 'inherit',
-                      fontSize: '0.75rem',
-                      outline: 'none',
-                    }}
-                  >
-                      <option value="gemini-3.5-flash">gemini-3.5-flash (Fast & Frontier)</option>
-                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>Payload Boundary</label>
-                  <select
-                    value={payloadMode}
-                    onChange={(e) => handlePayloadModeChange(e.target.value as any)}
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'var(--paper-light)',
-                      border: '1px solid var(--foreground)',
-                      padding: '0.4rem 0.5rem',
-                      fontFamily: 'inherit',
-                      fontSize: '0.75rem',
-                      outline: 'none',
-                    }}
-                  >
-                    <option value="precomputed">Precomputed Segments</option>
-                    <option value="raw">Raw Wall Vertices</option>
-                  </select>
-                </div>
+              <div>
+                <label className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>Model ID</label>
+                <select
+                  value={model}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'var(--paper-light)',
+                    border: '1px solid var(--foreground)',
+                    padding: '0.4rem 0.5rem',
+                    fontFamily: 'inherit',
+                    fontSize: '0.75rem',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="gemini-3.5-flash">gemini-3.5-flash (Fast & Frontier)</option>
+                  <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
+                </select>
               </div>
 
-              {/* ENGINE LAYER AND PREVIEW SEGMENTS SWITCHES */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              {/* TOGGLE OPTIONS GROUP */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.2rem' }}>
+                {/* Precomputed Segments Toggle */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.72rem',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    fontWeight: 600
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={payloadMode === 'precomputed'}
+                      onChange={(e) => handlePayloadModeChange(e.target.checked ? 'precomputed' : 'raw')}
+                      style={{ accentColor: 'var(--accent)' }}
+                    />
+                    <span className="mono" style={{ color: 'var(--foreground)' }}>Use Precomputed Wall Segments</span>
+                  </label>
+                  <span style={{ fontSize: '0.6rem', color: 'var(--ink-muted)', paddingLeft: '1.15rem', lineHeight: 1.3 }}>
+                    Simplifies calculations by sending pre-decomposed rectangular segments. (Uncheck to send raw DXF vertices).
+                  </span>
+                </div>
+
+                {/* Show Centerlines Toggle */}
                 <label style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -489,7 +479,8 @@ export default function Home() {
                   fontSize: '0.72rem',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  paddingBottom: '0.1rem'
+                  fontWeight: 600,
+                  marginTop: '0.2rem'
                 }}>
                   <input
                     type="checkbox"
@@ -497,7 +488,7 @@ export default function Home() {
                     onChange={(e) => setShowCenterlines(e.target.checked)}
                     style={{ accentColor: 'var(--accent)' }}
                   />
-                  <span className="mono" style={{ color: 'var(--foreground)' }}>Show Centerlines</span>
+                  <span className="mono" style={{ color: 'var(--foreground)' }}>Show Centerlines of Precomputed Segments</span>
                 </label>
               </div>
 
@@ -522,7 +513,7 @@ export default function Home() {
                   onMouseEnter={e => { if(!runLoading) e.currentTarget.style.backgroundColor = '#8c2f1b'; }}
                   onMouseLeave={e => { if(!runLoading) e.currentTarget.style.backgroundColor = 'var(--accent)'; }}
                 >
-                  {runLoading ? 'Evaluating Plan Geometry...' : 'Run Gemini Engine'}
+                  {runLoading ? 'Newt is Analyzing the Geometry...' : 'Ask Newt to Draw the Beams'}
                 </button>
 
                 {points.length > 0 && (
@@ -617,7 +608,7 @@ export default function Home() {
               {activeTab === 'prompts' && (
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
                   {/* System Prompt Box */}
-                  <div style={{ flex: '1 1 50%', display: 'flex', flexDirection: 'column', borderBottom: '1px solid rgba(42,38,31,0.15)' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div style={{
                       padding: '0.4rem 1rem',
                       backgroundColor: 'var(--paper-dark)',
@@ -719,64 +710,6 @@ export default function Home() {
                       spellCheck={false}
                     />
                   </div>
-
-                  {/* User override instructions prompt box */}
-                  <div style={{ flex: '1 1 50%', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{
-                      padding: '0.4rem 1rem',
-                      backgroundColor: 'var(--paper-dark)',
-                      borderBottom: '1px solid rgba(42,38,31,0.1)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexShrink: 0
-                    }}>
-                      <span className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', fontWeight: 600 }}>Additional Instructions (User Prompt)</span>
-                      {userPrompt && (
-                        <button
-                          onClick={() => {
-                            if (resetArmed.user) {
-                              setUserPrompt('');
-                              setResetArmed(s => ({ ...s, user: false }));
-                            } else {
-                              setResetArmed(s => ({ ...s, user: true }));
-                              setTimeout(() => setResetArmed(s => ({ ...s, user: false })), 3000);
-                            }
-                          }}
-                          className="mono"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--accent)',
-                            fontSize: '0.6rem',
-                            cursor: 'pointer',
-                            textDecoration: 'underline'
-                          }}
-                        >
-                          {resetArmed.user ? 'Confirm Clear?' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
-                    <textarea
-                      value={userPrompt}
-                      onChange={(e) => setUserPrompt(e.target.value)}
-                      placeholder="Add run-level overrides or modifications here (e.g. 'only look at vertical walls' or 'place an additional yellow dot at wall centers'). Leave blank to run default rules."
-                      style={{
-                        flex: 1,
-                        width: '100%',
-                        padding: '1rem',
-                        fontSize: '0.7rem',
-                        lineHeight: 1.5,
-                        backgroundColor: 'transparent',
-                        color: 'var(--foreground)',
-                        border: 'none',
-                        resize: 'none',
-                        outline: 'none',
-                        overflowY: 'auto'
-                      }}
-                      spellCheck={false}
-                    />
-                  </div>
                 </div>
               )}
 
@@ -785,7 +718,7 @@ export default function Home() {
                 <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <p style={{ fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--ink-muted)' }}>
-                      Below is a preview of the structured payload format compiled by the deterministic code layers. Based on your active <strong>Payload Boundary</strong> option, this raw data structure will be embedded into the model prompt.
+                      Below is a preview of the structured payload format compiled by the deterministic code layers. Based on your active <strong>Use Precomputed Wall Segments</strong> option, this raw data structure will be embedded into the model prompt.
                     </p>
                   </div>
                   <div>
