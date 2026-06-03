@@ -28,7 +28,7 @@ Each wall has:
 Simple rectangular walls have 1 segment. L-shapes have 2 segments (one per arm). Complex stepped walls have several. EVERY structural arm of every wall is already decomposed for you — you do not need to look at vertices or infer anything.
 
 LOCATION RULES
-1. FILTER OUT TINY WALL STUBS: Before grouping, ignore any segment whose length (endpointMax - endpointMin) is less than its perpendicular wall thickness (assume a standard wall thickness of 6" to 8"; therefore, ignore any segment shorter than 12"). Treat the space occupied by these stubs as open space (part of the larger opening).
+1. FILTER OUT TINY WALL STUBS: Before grouping, ignore any segment that is a square or smaller. Assume a standard wall thickness of 6" to 8"; therefore, ignore any segment whose length (endpointMax - endpointMin) is less than or equal to 6" (or 8" max). Any segment longer than 8" (such as 10", 11", or 12") is longer than its thickness, so it is NOT a square and must NOT be ignored (an 11" wall should always count as support). Treat the space occupied by ignored stubs as open space.
 2. Group ALL remaining segments from ALL bearing walls by (longAxis, centerline ±3"). Within each group, sort by endpointMin. For each consecutive pair of segments in a group, the gap = next.endpointMin minus prev.endpointMax. If gap ≥ 24", it is an opening.
 
 LOCUS POINTS
@@ -59,7 +59,8 @@ export default function Home() {
   // Prompts states
   const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
   const [userPrompt, setUserPrompt] = useState<string>(DEFAULT_USER_PROMPT);
-  const [resetArmed, setResetArmed] = useState<{ system: boolean; user: boolean }>({ system: false, user: false });
+  const [resetArmed, setResetArmed] = useState<{ system: boolean; user: boolean; factory: boolean }>({ system: false, user: false, factory: false });
+  const [saveDefaultSuccess, setSaveDefaultSuccess] = useState<boolean>(false);
 
   // Execution states
   const [runLoading, setRunLoading] = useState<boolean>(false);
@@ -98,6 +99,30 @@ export default function Home() {
   const handlePayloadModeChange = (newMode: 'raw' | 'precomputed') => {
     setPayloadMode(newMode);
     localStorage.setItem('payloadMode', newMode);
+  };
+
+  const handleSaveAsDefault = () => {
+    try {
+      localStorage.setItem('customDefaultSystemPrompt', systemPrompt);
+      setSaveDefaultSuccess(true);
+      setTimeout(() => setSaveDefaultSuccess(false), 2000);
+    } catch (e) {
+      console.error('Failed to save custom default prompt:', e);
+    }
+  };
+
+  const handleResetDefault = () => {
+    try {
+      const customDefault = localStorage.getItem('customDefaultSystemPrompt');
+      if (customDefault) {
+        setSystemPrompt(customDefault);
+      } else {
+        setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+      }
+    } catch (e) {
+      console.error('Failed to reset system prompt to custom default:', e);
+      setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    }
   };
 
   // Debounced prompt persistence
@@ -425,7 +450,7 @@ export default function Home() {
                   >
                     <optgroup label="Next-Generation (Recommended)" style={{ fontStyle: 'normal', color: 'var(--ink)' }}>
                       <option value="gemini-3.5-flash">gemini-3.5-flash (Fast & Frontier)</option>
-                      <option value="gemini-3.1-pro">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
+                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
                     </optgroup>
                     <optgroup label="Stable legacy" style={{ fontStyle: 'normal', color: 'var(--ink-muted)' }}>
                       <option value="gemini-2.5-flash">gemini-2.5-flash</option>
@@ -603,28 +628,77 @@ export default function Home() {
                       flexShrink: 0
                     }}>
                       <span className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-muted)', fontWeight: 600 }}>System Prompt (Skills File)</span>
-                      <button
-                        onClick={() => {
-                          if (resetArmed.system) {
-                            setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
-                            setResetArmed(s => ({ ...s, system: false }));
-                          } else {
-                            setResetArmed(s => ({ ...s, system: true }));
-                            setTimeout(() => setResetArmed(s => ({ ...s, system: false })), 3000);
-                          }
-                        }}
-                        className="mono"
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--accent)',
-                          fontSize: '0.6rem',
-                          cursor: 'pointer',
-                          textDecoration: 'underline'
-                        }}
-                      >
-                        {resetArmed.system ? 'Confirm Reset?' : 'Reset Default'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                        {/* Save Current as Default Button */}
+                        <button
+                          onClick={handleSaveAsDefault}
+                          className="mono"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: saveDefaultSuccess ? '#10b981' : 'var(--accent)',
+                            fontSize: '0.6rem',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            fontWeight: saveDefaultSuccess ? 700 : 'normal',
+                            transition: 'color 0.2s ease'
+                          }}
+                        >
+                          {saveDefaultSuccess ? '✓ Saved!' : 'Make This Default'}
+                        </button>
+
+                        <span style={{ color: 'rgba(42,38,31,0.15)', fontSize: '0.6rem' }}>|</span>
+
+                        {/* Reset to Custom Default Button */}
+                        <button
+                          onClick={() => {
+                            if (resetArmed.system) {
+                              handleResetDefault();
+                              setResetArmed(s => ({ ...s, system: false }));
+                            } else {
+                              setResetArmed(s => ({ ...s, system: true, factory: false }));
+                              setTimeout(() => setResetArmed(s => ({ ...s, system: false })), 3000);
+                            }
+                          }}
+                          className="mono"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: resetArmed.system ? 'var(--accent)' : 'var(--ink-muted)',
+                            fontSize: '0.6rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          {resetArmed.system ? 'Confirm Reset?' : 'Reset to Default'}
+                        </button>
+
+                        <span style={{ color: 'rgba(42,38,31,0.15)', fontSize: '0.6rem' }}>|</span>
+
+                        {/* Reset to Factory Default Button */}
+                        <button
+                          onClick={() => {
+                            if (resetArmed.factory) {
+                              setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+                              setResetArmed(s => ({ ...s, factory: false }));
+                            } else {
+                              setResetArmed(s => ({ ...s, factory: true, system: false }));
+                              setTimeout(() => setResetArmed(s => ({ ...s, factory: false })), 3000);
+                            }
+                          }}
+                          className="mono"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: resetArmed.factory ? 'var(--accent)' : 'var(--ink-muted)',
+                            fontSize: '0.6rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          {resetArmed.factory ? 'Confirm Factory?' : 'Reset Factory'}
+                        </button>
+                      </div>
                     </div>
                     <textarea
                       value={systemPrompt}
