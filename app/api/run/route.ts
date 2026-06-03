@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
-export const maxDuration = 60; // Vercel Pro timeout bypass
+export const maxDuration = 300; // Vercel Pro timeout bypass (5 minutes)
 
 // Helper function to extract points from markdown-style prose
 function extractPointsFromMarkdown(text: string): any[] {

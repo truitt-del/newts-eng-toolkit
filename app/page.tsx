@@ -111,6 +111,8 @@ export default function Home() {
   const [rawResponse, setRawResponse] = useState<string>('');
   const [showRaw, setShowRaw] = useState<boolean>(false);
   const [metrics, setMetrics] = useState<{ inputTokens: number; outputTokens: number; latency: number } | null>(null);
+  const [timerSeconds, setTimerSeconds] = useState<number>(0);
+  const [finalRenderTime, setFinalRenderTime] = useState<number | null>(null);
 
   // Dual hover synchronization state
   const [hoveredWallId, setHoveredWallId] = useState<number | null>(null);
@@ -258,6 +260,13 @@ export default function Home() {
     setPoints([]);
     setRawResponse('');
     setMetrics(null);
+    setTimerSeconds(0);
+    setFinalRenderTime(null);
+
+    const startTime = Date.now();
+    const timerInterval = setInterval(() => {
+      setTimerSeconds(Math.round((Date.now() - startTime) / 1000));
+    }, 200);
 
     try {
       const response = await fetch('/api/run', {
@@ -313,6 +322,9 @@ export default function Home() {
       console.error(e);
       setError(e.message || String(e));
     } finally {
+      clearInterval(timerInterval);
+      const elapsed = Math.round((Date.now() - startTime) / 100) / 10;
+      setFinalRenderTime(elapsed);
       setRunLoading(false);
     }
   };
@@ -590,48 +602,70 @@ export default function Home() {
               </div>
 
               {/* ACTION ROW */}
-              <div style={{ display: 'flex', gap: '0.65rem', borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '0.75rem', marginTop: '0.2rem' }}>
-                <button
-                  onClick={runAIEngine}
-                  disabled={runLoading}
-                  style={{
-                    flex: 1,
-                    backgroundColor: runLoading ? 'var(--ink-disabled)' : 'var(--accent)',
-                    color: 'var(--paper-light)',
-                    border: 'none',
-                    padding: '0.65rem',
-                    fontSize: '0.72rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    fontWeight: 600,
-                    cursor: runLoading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => { if(!runLoading) e.currentTarget.style.backgroundColor = '#3d8c38'; }}
-                  onMouseLeave={e => { if(!runLoading) e.currentTarget.style.backgroundColor = 'var(--accent)'; }}
-                >
-                  {runLoading ? 'Newt is Analyzing the Geometry...' : 'Ask Newt to Draw the Beams'}
-                </button>
-
-                {points.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '0.75rem', marginTop: '0.2rem' }}>
+                <div style={{ display: 'flex', gap: '0.65rem' }}>
                   <button
-                    onClick={() => {
-                      setPoints([]);
-                      setRawResponse('');
-                      setMetrics(null);
-                    }}
-                    className="mono"
+                    onClick={runAIEngine}
+                    disabled={runLoading}
                     style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid var(--foreground)',
-                      color: 'var(--foreground)',
-                      padding: '0 0.75rem',
-                      fontSize: '0.7rem',
-                      cursor: 'pointer'
+                      flex: 1,
+                      backgroundColor: runLoading ? 'var(--ink-disabled)' : 'var(--accent)',
+                      color: 'var(--paper-light)',
+                      border: 'none',
+                      padding: '0.65rem',
+                      fontSize: '0.72rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.1em',
+                      fontWeight: 600,
+                      cursor: runLoading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease'
                     }}
+                    onMouseEnter={e => { if(!runLoading) e.currentTarget.style.backgroundColor = '#3d8c38'; }}
+                    onMouseLeave={e => { if(!runLoading) e.currentTarget.style.backgroundColor = 'var(--accent)'; }}
                   >
-                    Clear Points
+                    {runLoading ? `Analyzing Geometry... (⏳ ${timerSeconds}s)` : 'Ask Newt to Draw the Beams'}
                   </button>
+
+                  {points.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setPoints([]);
+                        setRawResponse('');
+                        setMetrics(null);
+                        setFinalRenderTime(null);
+                      }}
+                      className="mono"
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: '1px solid var(--foreground)',
+                        color: 'var(--foreground)',
+                        padding: '0 0.75rem',
+                        fontSize: '0.7rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear Points
+                    </button>
+                  )}
+                </div>
+
+                {finalRenderTime !== null && !runLoading && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.72rem',
+                    color: '#4ade80',
+                    fontFamily: 'monospace',
+                    fontWeight: 600,
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(74, 222, 128, 0.08)',
+                    border: '1px solid rgba(74, 222, 128, 0.15)',
+                    alignSelf: 'flex-start'
+                  }}>
+                    <span>✨ Rendered in {finalRenderTime}s</span>
+                  </div>
                 )}
               </div>
             </div>
