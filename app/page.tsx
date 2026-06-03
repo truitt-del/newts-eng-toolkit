@@ -28,7 +28,8 @@ Each wall has:
 Simple rectangular walls have 1 segment. L-shapes have 2 segments (one per arm). Complex stepped walls have several. EVERY structural arm of every wall is already decomposed for you — you do not need to look at vertices or infer anything.
 
 LOCATION RULES
-Group ALL segments from ALL bearing walls by (longAxis, centerline ±3"). Within each group, sort by endpointMin. For each consecutive pair of segments in a group, the gap = next.endpointMin minus prev.endpointMax. If gap ≥ 24", it is an opening.
+1. FILTER OUT TINY WALL STUBS: Before grouping, ignore any segment whose length (endpointMax - endpointMin) is less than its perpendicular wall thickness (assume a standard wall thickness of 6" to 8"; therefore, ignore any segment shorter than 12"). Treat the space occupied by these stubs as open space (part of the larger opening).
+2. Group ALL remaining segments from ALL bearing walls by (longAxis, centerline ±3"). Within each group, sort by endpointMin. For each consecutive pair of segments in a group, the gap = next.endpointMin minus prev.endpointMax. If gap ≥ 24", it is an opening.
 
 LOCUS POINTS
 For each opening, emit:
