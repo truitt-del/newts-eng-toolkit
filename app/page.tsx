@@ -38,6 +38,39 @@ For each opening, emit:
 
 CALL THE TOOL. NO TEXT OUTPUT.`;
 
+const MODEL_DETAILS: Record<string, { title: string; badge: string; desc: string; latency: string }> = {
+  'gemini-3.5-flash': {
+    title: 'Frontier Flash (v3.5)',
+    badge: 'Recommended Default',
+    desc: 'Advanced reasoning and excellent formatting stability. Recommended for the most complex spatial layouts.',
+    latency: 'Medium (~1.6s)'
+  },
+  'gemini-2.5-flash': {
+    title: 'Balanced Standard (v2.5)',
+    badge: 'Very Stable',
+    desc: 'Extremely mature, highly cost-efficient, and over 2x faster than v3.5-flash in tests. Perfect for general layout tasks.',
+    latency: 'Fast (~750ms)'
+  },
+  'gemini-3.1-flash-lite': {
+    title: 'Lightweight Explorer (v3.1)',
+    badge: 'Cost-Efficient',
+    desc: 'Superb speed and high efficiency. Ideal when using the "Precomputed Segments" boundary where heavy math is handled by code.',
+    latency: 'Very Fast (~690ms)'
+  },
+  'gemini-2.5-flash-lite': {
+    title: 'Ultra-Fast Lite (v2.5)',
+    badge: 'Maximum Speed',
+    desc: 'Lowest latency option. Extremely fast for interactive editing, prototyping, or light rule adjustments.',
+    latency: 'Blazing Fast (~430ms)'
+  },
+  'gemini-3.1-pro-preview': {
+    title: 'Heavy Reasoner (v3.1 Pro)',
+    badge: 'Paid Tier Only',
+    desc: 'Highest logical capacity. Note: Requires Google AI Studio Pay-As-You-Go billing enabled; fails on Free Tier.',
+    latency: 'Slow / Heavy'
+  }
+};
+
 export default function Home() {
   const [fileStats, setFileStats] = useState<ParsedDXF | null>(null);
   const [walls, setWalls] = useState<ClassifiedWall[]>([]);
@@ -53,6 +86,13 @@ export default function Home() {
   const provider = 'google';
   const [model, setModel] = useState<string>('gemini-3.5-flash');
   const [payloadMode, setPayloadMode] = useState<'raw' | 'precomputed'>('precomputed');
+
+  const modelInfo = MODEL_DETAILS[model] || {
+    title: model,
+    badge: 'Custom',
+    desc: 'Custom model endpoint.',
+    latency: 'N/A'
+  };
 
   // Prompts states
   const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
@@ -77,7 +117,13 @@ export default function Home() {
       const savedSystem = localStorage.getItem('systemPrompt');
       const savedShowCenterlines = localStorage.getItem('showCenterlines');
 
-      const VALID_MODELS = ['gemini-3.5-flash', 'gemini-3.1-pro-preview'];
+      const VALID_MODELS = [
+        'gemini-3.5-flash',
+        'gemini-2.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash-lite',
+        'gemini-3.1-pro-preview'
+      ];
       if (savedModel && VALID_MODELS.includes(savedModel)) {
         setModel(savedModel);
       } else {
@@ -292,16 +338,16 @@ export default function Home() {
     }}>
       {/* HEADER */}
       <header style={{
-        borderBottom: '1px solid var(--foreground)',
+        borderBottom: '1px solid var(--ink-disabled)',
         backgroundColor: 'var(--paper-dark)',
         padding: '1rem 2rem',
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-            <div className="mono" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--accent)', fontWeight: 600 }}>
+            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--accent-light)', fontWeight: 800 }}>
               NEWT'S TOOLKIT | STRUCTURAL SUITE
             </div>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.02em', marginTop: '0.15rem' }}>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '0.15rem' }}>
               Bearing Line Framer Sandbox
             </h1>
           
@@ -351,14 +397,14 @@ export default function Home() {
             onDragLeave={onDragLeave}
             onDrop={onDrop}
             style={{
-              border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--foreground)'}`,
+              border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--ink-disabled)'}`,
               backgroundColor: dragging ? 'var(--paper-dark)' : 'var(--paper-light)',
               padding: '6rem 3rem',
               textAlign: 'center',
               cursor: 'pointer',
               maxWidth: '750px',
               width: '100%',
-              boxShadow: '0 4px 16px rgba(42,38,31,0.04)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
               transition: 'all 0.15s ease-in-out',
             }}
           >
@@ -408,7 +454,7 @@ export default function Home() {
         }}>
           {/* SIDE PANEL: CONTROLS & DIAGNOSTICS */}
           <aside style={{
-            borderRight: '1px solid var(--foreground)',
+            borderRight: '1px solid var(--ink-disabled)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -417,7 +463,7 @@ export default function Home() {
             {/* PARAMETERS CONFIG */}
             <div style={{
               padding: '1.25rem 1.5rem',
-              borderBottom: '1px solid var(--foreground)',
+              borderBottom: '1px solid var(--ink-disabled)',
               display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
@@ -433,7 +479,8 @@ export default function Home() {
                   style={{
                     width: '100%',
                     backgroundColor: 'var(--paper-light)',
-                    border: '1px solid var(--foreground)',
+                    border: '1px solid var(--ink-disabled)',
+                    color: 'var(--foreground)',
                     padding: '0.4rem 0.5rem',
                     fontFamily: 'inherit',
                     fontSize: '0.75rem',
@@ -441,8 +488,36 @@ export default function Home() {
                   }}
                 >
                   <option value="gemini-3.5-flash">gemini-3.5-flash (Fast & Frontier)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Balanced Standard)</option>
+                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lightweight Explorer)</option>
+                  <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Ultra-Fast Speed)</option>
                   <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
                 </select>
+                
+                {/* Dynamically updated model description box */}
+                <div style={{
+                  marginTop: '0.5rem',
+                  backgroundColor: 'var(--background)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  padding: '0.45rem 0.65rem',
+                  fontSize: '0.65rem',
+                  lineHeight: '1.35'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                    <strong style={{ color: 'var(--accent-light)' }}>{modelInfo.title}</strong>
+                    <span className="mono" style={{
+                      backgroundColor: modelInfo.badge === 'Paid Tier Only' ? 'var(--accent)' : 'rgba(255,255,255,0.12)',
+                      color: '#fff',
+                      padding: '0.05rem 0.25rem',
+                      fontSize: '0.55rem',
+                      fontWeight: 600
+                    }}>{modelInfo.badge}</span>
+                  </div>
+                  <p style={{ color: 'var(--ink-muted)', margin: 0 }}>{modelInfo.desc}</p>
+                  <div style={{ marginTop: '0.35rem', fontSize: '0.58rem', color: 'var(--ink-disabled)' }} className="mono">
+                    Latency Profile: {modelInfo.latency}
+                  </div>
+                </div>
               </div>
 
               {/* TOGGLE OPTIONS GROUP */}
@@ -493,7 +568,7 @@ export default function Home() {
               </div>
 
               {/* ACTION ROW */}
-              <div style={{ display: 'flex', gap: '0.65rem', borderTop: '1px solid rgba(42,38,31,0.1)', paddingTop: '0.75rem', marginTop: '0.2rem' }}>
+              <div style={{ display: 'flex', gap: '0.65rem', borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '0.75rem', marginTop: '0.2rem' }}>
                 <button
                   onClick={runAIEngine}
                   disabled={runLoading}
@@ -510,7 +585,7 @@ export default function Home() {
                     cursor: runLoading ? 'not-allowed' : 'pointer',
                     transition: 'all 0.15s ease'
                   }}
-                  onMouseEnter={e => { if(!runLoading) e.currentTarget.style.backgroundColor = '#8c2f1b'; }}
+                  onMouseEnter={e => { if(!runLoading) e.currentTarget.style.backgroundColor = '#3d8c38'; }}
                   onMouseLeave={e => { if(!runLoading) e.currentTarget.style.backgroundColor = 'var(--accent)'; }}
                 >
                   {runLoading ? 'Newt is Analyzing the Geometry...' : 'Ask Newt to Draw the Beams'}
@@ -612,7 +687,7 @@ export default function Home() {
                     <div style={{
                       padding: '0.4rem 1rem',
                       backgroundColor: 'var(--paper-dark)',
-                      borderBottom: '1px solid rgba(42,38,31,0.1)',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
@@ -638,7 +713,7 @@ export default function Home() {
                           {saveDefaultSuccess ? '✓ Saved!' : 'Make This Default'}
                         </button>
 
-                        <span style={{ color: 'rgba(42,38,31,0.15)', fontSize: '0.6rem' }}>|</span>
+                        <span style={{ color: 'rgba(255, 255, 255, 0.15)', fontSize: '0.6rem' }}>|</span>
 
                         {/* Reset to Custom Default Button */}
                         <button
@@ -664,7 +739,7 @@ export default function Home() {
                           {resetArmed.system ? 'Confirm Reset?' : 'Reset to Default'}
                         </button>
 
-                        <span style={{ color: 'rgba(42,38,31,0.15)', fontSize: '0.6rem' }}>|</span>
+                        <span style={{ color: 'rgba(255, 255, 255, 0.15)', fontSize: '0.6rem' }}>|</span>
 
                         {/* Reset to Factory Default Button */}
                         <button
@@ -725,7 +800,7 @@ export default function Home() {
                     <div className="mono" style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: 'var(--ink-disabled)', marginBottom: '0.4rem', fontWeight: 600 }}>Compiled Wall Payload Sample (First 2 walls)</div>
                     <pre className="mono" style={{
                       backgroundColor: 'var(--background)',
-                      border: '1px solid rgba(42,38,31,0.15)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
                       padding: '1rem',
                       fontSize: '0.68rem',
                       overflowX: 'auto',
@@ -740,7 +815,7 @@ export default function Home() {
               {/* TAB: WALL INSPECTOR LIST (DOUBLE HOVER SYNCED) */}
               {activeTab === 'inspector' && (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(42,38,31,0.1)', backgroundColor: 'var(--paper-dark)' }}>
+                  <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.12)', backgroundColor: 'var(--paper-dark)' }}>
                     <p style={{ fontSize: '0.7rem', lineHeight: 1.4, color: 'var(--ink-muted)' }}>
                       Scroll and inspect parsed walls. Hovering a row highlights its exact boundary on the drawing. Solid filled walls are classified as <strong>Bearing</strong>.
                     </p>
@@ -755,7 +830,7 @@ export default function Home() {
                           onMouseLeave={() => setHoveredWallId(null)}
                           style={{
                             padding: '0.75rem 1.25rem',
-                            borderBottom: '1px solid rgba(42,38,31,0.08)',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                             backgroundColor: isHovered ? 'var(--paper-dark)' : 'transparent',
                             transition: 'background-color 0.1s ease',
                             cursor: 'pointer',
@@ -792,7 +867,7 @@ export default function Home() {
                           )}
 
                           {w.segments.length > 0 && (
-                            <div style={{ marginTop: '0.2rem', padding: '0.3rem 0.5rem', backgroundColor: 'rgba(42,38,31,0.03)', border: '1px dashed rgba(42,38,31,0.1)' }}>
+                            <div style={{ marginTop: '0.2rem', padding: '0.3rem 0.5rem', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px dashed rgba(150, 208, 164, 0.2)' }}>
                               <div className="mono" style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 600, marginBottom: '0.15rem' }}>
                                 Precomputed Segments ({w.segments.length})
                               </div>
@@ -914,7 +989,7 @@ export default function Home() {
                     {showRaw ? '[Collapse Viewer ▲]' : '[Click to Expand Raw Log ▼]'}
                   </span>
                 </div>
-                <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', borderTop: '1px solid rgba(42,38,31,0.1)' }}>
+                <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', borderTop: '1px solid rgba(255, 255, 255, 0.12)' }}>
                   <pre className="mono" style={{
                     fontSize: '0.65rem',
                     lineHeight: 1.45,
