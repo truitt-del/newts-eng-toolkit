@@ -63,11 +63,17 @@ const MODEL_DETAILS: Record<string, { title: string; badge: string; desc: string
     desc: 'Lowest latency option. Extremely fast for interactive editing, prototyping, or light rule adjustments.',
     latency: 'Blazing Fast (~430ms)'
   },
+  'gemini-2.5-pro': {
+    title: 'Balanced Heavy (v2.5 Pro)',
+    badge: 'Pro Reasoning',
+    desc: 'High logical capacity combined with remarkably fast latency in test suites. Outstanding balance for structural calculations.',
+    latency: 'Pro Fast (~1.9s)'
+  },
   'gemini-3.1-pro-preview': {
-    title: 'Heavy Reasoner (v3.1 Pro)',
-    badge: 'Paid Tier Only',
-    desc: 'Highest logical capacity. Note: Requires Google AI Studio Pay-As-You-Go billing enabled; fails on Free Tier.',
-    latency: 'Slow / Heavy'
+    title: 'Frontier Heavy (v3.1 Pro)',
+    badge: 'Frontier Reasoner',
+    desc: 'Ultimate logical capacity and deep spatial reasoning. Best suited for extremely complex plans where maximum intelligence is required.',
+    latency: 'Heavy (~10.1s)'
   }
 };
 
@@ -122,6 +128,7 @@ export default function Home() {
         'gemini-2.5-flash',
         'gemini-3.1-flash-lite',
         'gemini-2.5-flash-lite',
+        'gemini-2.5-pro',
         'gemini-3.1-pro-preview'
       ];
       if (savedModel && VALID_MODELS.includes(savedModel)) {
@@ -491,7 +498,8 @@ export default function Home() {
                   <option value="gemini-2.5-flash">gemini-2.5-flash (Balanced Standard)</option>
                   <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Lightweight Explorer)</option>
                   <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Ultra-Fast Speed)</option>
-                  <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Deep Reasoner / Heavy)</option>
+                  <option value="gemini-2.5-pro">gemini-2.5-pro (Balanced Heavy / Pro)</option>
+                  <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Frontier Heavy / Pro)</option>
                 </select>
                 
                 {/* Dynamically updated model description box */}
@@ -506,7 +514,7 @@ export default function Home() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
                     <strong style={{ color: 'var(--accent-light)' }}>{modelInfo.title}</strong>
                     <span className="mono" style={{
-                      backgroundColor: modelInfo.badge === 'Paid Tier Only' ? 'var(--accent)' : 'rgba(255,255,255,0.12)',
+                      backgroundColor: (modelInfo.badge.includes('Heavy') || modelInfo.badge.includes('Pro') || modelInfo.badge.includes('Reasoner')) ? 'var(--accent)' : 'rgba(255,255,255,0.12)',
                       color: '#fff',
                       padding: '0.05rem 0.25rem',
                       fontSize: '0.55rem',
@@ -542,7 +550,7 @@ export default function Home() {
                     <span className="mono" style={{ color: 'var(--foreground)' }}>Use Precomputed Wall Segments</span>
                   </label>
                   <span style={{ fontSize: '0.6rem', color: 'var(--ink-muted)', paddingLeft: '1.15rem', lineHeight: 1.3 }}>
-                    Simplifies calculations by sending pre-decomposed rectangular segments. (Uncheck to send raw DXF vertices).
+                    Simplifies Newts AI Reasoning by sending pre-decomposed rectangular segments. (Uncheck to send raw DXF vertices).
                   </span>
                 </div>
 
