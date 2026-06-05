@@ -1285,6 +1285,285 @@ HOW TO RESOLVE THIS:
                 </div>
               </div>
 
+              {/* PROPERTIES INSPECTOR CARD - GLOBAL FOR STEPS >= 2 */}
+              {session.currentStep >= 2 && selectedElement && (
+                <div style={{
+                  padding: '1rem',
+                  borderBottom: '1px solid var(--ink-disabled)',
+                  backgroundColor: 'rgba(255, 145, 0, 0.05)',
+                  flexShrink: 0
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.75rem'
+                  }}>
+                    <div style={{
+                      fontSize: '0.72rem',
+                      textTransform: 'uppercase',
+                      color: 'var(--accent-light)',
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}>
+                      <span style={{
+                        display: 'inline-block',
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--accent)',
+                        animation: 'pulse 1.5s infinite'
+                      }}></span>
+                      Properties Inspector
+                    </div>
+                    <button
+                      onClick={() => setSelectedElement(null)}
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'var(--ink-muted)',
+                        fontSize: '0.7rem',
+                        cursor: 'pointer',
+                        padding: '0.1rem 0.3rem'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--ink-muted)'}
+                    >
+                      ✕ Close
+                    </button>
+                  </div>
+
+                  {/* Wall Inspection */}
+                  {selectedElement.type === 'wall' && (() => {
+                    const wallId = selectedElement.id;
+                    const wall = session.elements.walls.find(w => w.id === wallId);
+                    if (!wall) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Wall not found</div>;
+                    const centroid = getPolygonCentroid(wall.vertices);
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.65rem' }}>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Element:</span> <strong style={{ color: 'var(--accent-light)' }}>Wall #{wall.id}</strong></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Layer:</span> <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '80px' }}>{wall.layer}</span></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Thickness:</span> <span className="mono">{(wall.thickness).toFixed(1)}"</span></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Area:</span> <span className="mono">{(wall.area / 144).toFixed(1)} sq ft</span></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Vertices:</span> <span className="mono">{wall.vertices.length}</span></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Centroid:</span> <span className="mono">({centroid.x.toFixed(0)}, {centroid.y.toFixed(0)})</span></div>
+                          <div style={{ gridColumn: 'span 2' }}>
+                            <span style={{ color: 'var(--ink-muted)' }}>Class:</span>{' '}
+                            <strong style={{ color: wall.bearing ? '#4caf50' : '#2196f3' }}>
+                              {wall.bearing ? 'Structural (Bearing)' : 'Partition (Non-Bearing)'}
+                            </strong>
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                          <button
+                            onClick={() => handleToggleWallBearing(wall.id)}
+                            style={{
+                              flex: 1,
+                              backgroundColor: wall.bearing ? 'rgba(33, 150, 243, 0.15)' : 'rgba(76, 175, 80, 0.15)',
+                              border: `1px solid ${wall.bearing ? '#2196f3' : '#4caf50'}`,
+                              color: wall.bearing ? '#2196f3' : '#4caf50',
+                              fontSize: '0.6rem',
+                              fontWeight: 700,
+                              padding: '0.35rem',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.backgroundColor = wall.bearing ? 'rgba(33, 150, 243, 0.25)' : 'rgba(76, 175, 80, 0.25)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.backgroundColor = wall.bearing ? 'rgba(33, 150, 243, 0.15)' : 'rgba(76, 175, 80, 0.15)';
+                            }}
+                          >
+                            Toggle Bearing
+                          </button>
+                          <button
+                            onClick={() => handleConfirmElement('wall', wall.id)}
+                            style={{
+                              flex: 1,
+                              backgroundColor: 'rgba(75, 160, 70, 0.15)',
+                              border: '1px solid var(--accent)',
+                              color: 'var(--accent-light)',
+                              fontSize: '0.6rem',
+                              fontWeight: 700,
+                              padding: '0.35rem',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
+                          >
+                            Confirm Layout
+                          </button>
+                          <button
+                            onClick={() => handleDeleteElement('wall', wall.id)}
+                            style={{
+                              backgroundColor: 'rgba(244, 67, 54, 0.15)',
+                              border: '1px solid #f44336',
+                              color: '#ff5252',
+                              fontSize: '0.6rem',
+                              fontWeight: 700,
+                              padding: '0.35rem 0.6rem',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              textTransform: 'uppercase',
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.25)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.15)'}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Fixture Inspection */}
+                  {selectedElement.type === 'fixture' && (() => {
+                    const fixId = selectedElement.id;
+                    const fixture = session.elements.fixtures.find(f => f.id === fixId);
+                    if (!fixture) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Fixture not found</div>;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.65rem' }}>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Element:</span> <strong style={{ color: 'var(--accent-light)' }}>Fixture #{fixture.id}</strong></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Layer:</span> <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '80px' }}>{fixture.layer}</span></div>
+                          <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-muted)' }}>Block:</span> <span className="mono" style={{ color: 'var(--accent-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '160px' }}>{fixture.blockName || 'None'}</span></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Coords:</span> <span className="mono">({fixture.x.toFixed(1)}, {fixture.y.toFixed(1)})</span></div>
+                          <div>
+                            <span style={{ color: 'var(--ink-muted)' }}>Class:</span>{' '}
+                            <strong style={{ color: '#2196f3', textTransform: 'uppercase' }}>
+                              {fixture.type}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {/* Reclassify Buttons & Other Actions */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.25rem' }}>
+                          <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.6rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reclassify:</span>
+                            {(['toilet', 'sink', 'tub', 'other'] as const).map(t => (
+                              <button
+                                key={t}
+                                onClick={() => handleReclassifyFixture(fixture.id, t)}
+                                style={{
+                                  backgroundColor: fixture.type === t ? 'var(--accent)' : 'var(--paper-dark)',
+                                  border: `1px solid ${fixture.type === t ? 'var(--accent-light)' : 'var(--ink-disabled)'}`,
+                                  color: fixture.type === t ? '#fff' : 'var(--ink-muted)',
+                                  fontSize: '0.55rem',
+                                  fontWeight: 700,
+                                  padding: '0.2rem 0.4rem',
+                                  borderRadius: '2px',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <button
+                              onClick={() => handleConfirmElement('fixture', fixture.id)}
+                              style={{
+                                flex: 1,
+                                backgroundColor: 'rgba(75, 160, 70, 0.15)',
+                                border: '1px solid var(--accent)',
+                                color: 'var(--accent-light)',
+                                fontSize: '0.6rem',
+                                fontWeight: 700,
+                                padding: '0.35rem',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.02em',
+                                transition: 'all 0.15s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
+                              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
+                            >
+                              Confirm Fixture
+                            </button>
+                            <button
+                              onClick={() => handleDeleteElement('fixture', fixture.id)}
+                              style={{
+                                backgroundColor: 'rgba(244, 67, 54, 0.15)',
+                                border: '1px solid #f44336',
+                                color: '#ff5252',
+                                fontSize: '0.6rem',
+                                fontWeight: 700,
+                                padding: '0.35rem 0.6rem',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                textTransform: 'uppercase',
+                                transition: 'all 0.15s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.25)'}
+                              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.15)'}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Exception Inspection */}
+                  {selectedElement.type === 'exception' && (() => {
+                    const excId = selectedElement.id;
+                    const exc = session.exceptions.find(e => e.id === excId);
+                    if (!exc) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Exception not found</div>;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.65rem' }}>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Type:</span> <strong style={{ color: '#f44336', textTransform: 'uppercase' }}>{exc.type}</strong></div>
+                          <div><span style={{ color: 'var(--ink-muted)' }}>Title:</span> <span style={{ color: '#ff5252', fontWeight: 600 }}>{exc.title}</span></div>
+                          <p style={{ color: 'var(--ink-muted)', fontSize: '0.62rem', margin: 0, lineHeight: 1.3 }}>{exc.description}</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                          <button
+                            onClick={() => handleResolveException(exc.id)}
+                            style={{
+                              flex: 1,
+                              backgroundColor: 'rgba(75, 160, 70, 0.15)',
+                              border: '1px solid var(--accent)',
+                              color: 'var(--accent-light)',
+                              fontSize: '0.6rem',
+                              fontWeight: 700,
+                              padding: '0.35rem',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
+                          >
+                            Resolve Exception
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* STEP 1 PANEL */}
               {session.currentStep === 1 && (
                 <>
@@ -1722,285 +2001,6 @@ HOW TO RESOLVE THIS:
               {session.currentStep === 2 && (
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                   
-                  {/* PROPERTIES INSPECTOR CARD */}
-                  {selectedElement && (
-                    <div style={{
-                      padding: '1rem',
-                      borderBottom: '1px solid var(--ink-disabled)',
-                      backgroundColor: 'rgba(255, 145, 0, 0.05)',
-                      flexShrink: 0
-                    }}>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.75rem'
-                      }}>
-                        <div style={{
-                          fontSize: '0.72rem',
-                          textTransform: 'uppercase',
-                          color: 'var(--accent-light)',
-                          fontWeight: 700,
-                          letterSpacing: '0.05em',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem'
-                        }}>
-                          <span style={{
-                            display: 'inline-block',
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            backgroundColor: 'var(--accent)',
-                            animation: 'pulse 1.5s infinite'
-                          }}></span>
-                          Properties Inspector
-                        </div>
-                        <button
-                          onClick={() => setSelectedElement(null)}
-                          style={{
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            color: 'var(--ink-muted)',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            padding: '0.1rem 0.3rem'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--ink-muted)'}
-                        >
-                          ✕ Close
-                        </button>
-                      </div>
-
-                      {/* Wall Inspection */}
-                      {selectedElement.type === 'wall' && (() => {
-                        const wallId = selectedElement.id;
-                        const wall = session.elements.walls.find(w => w.id === wallId);
-                        if (!wall) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Wall not found</div>;
-                        const centroid = getPolygonCentroid(wall.vertices);
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.65rem' }}>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Element:</span> <strong style={{ color: 'var(--accent-light)' }}>Wall #{wall.id}</strong></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Layer:</span> <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '80px' }}>{wall.layer}</span></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Thickness:</span> <span className="mono">{(wall.thickness).toFixed(1)}"</span></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Area:</span> <span className="mono">{(wall.area / 144).toFixed(1)} sq ft</span></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Vertices:</span> <span className="mono">{wall.vertices.length}</span></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Centroid:</span> <span className="mono">({centroid.x.toFixed(0)}, {centroid.y.toFixed(0)})</span></div>
-                              <div style={{ gridColumn: 'span 2' }}>
-                                <span style={{ color: 'var(--ink-muted)' }}>Class:</span>{' '}
-                                <strong style={{ color: wall.bearing ? '#4caf50' : '#2196f3' }}>
-                                  {wall.bearing ? 'Structural (Bearing)' : 'Partition (Non-Bearing)'}
-                                </strong>
-                              </div>
-                            </div>
-                            
-                            {/* Action Buttons */}
-                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
-                              <button
-                                onClick={() => handleToggleWallBearing(wall.id)}
-                                style={{
-                                  flex: 1,
-                                  backgroundColor: wall.bearing ? 'rgba(33, 150, 243, 0.15)' : 'rgba(76, 175, 80, 0.15)',
-                                  border: `1px solid ${wall.bearing ? '#2196f3' : '#4caf50'}`,
-                                  color: wall.bearing ? '#2196f3' : '#4caf50',
-                                  fontSize: '0.6rem',
-                                  fontWeight: 700,
-                                  padding: '0.35rem',
-                                  borderRadius: '3px',
-                                  cursor: 'pointer',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.02em',
-                                  transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.backgroundColor = wall.bearing ? 'rgba(33, 150, 243, 0.25)' : 'rgba(76, 175, 80, 0.25)';
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.backgroundColor = wall.bearing ? 'rgba(33, 150, 243, 0.15)' : 'rgba(76, 175, 80, 0.15)';
-                                }}
-                              >
-                                Toggle Bearing
-                              </button>
-                              <button
-                                onClick={() => handleConfirmElement('wall', wall.id)}
-                                style={{
-                                  flex: 1,
-                                  backgroundColor: 'rgba(75, 160, 70, 0.15)',
-                                  border: '1px solid var(--accent)',
-                                  color: 'var(--accent-light)',
-                                  fontSize: '0.6rem',
-                                  fontWeight: 700,
-                                  padding: '0.35rem',
-                                  borderRadius: '3px',
-                                  cursor: 'pointer',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.02em',
-                                  transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
-                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
-                              >
-                                Confirm Layout
-                              </button>
-                              <button
-                                onClick={() => handleDeleteElement('wall', wall.id)}
-                                style={{
-                                  backgroundColor: 'rgba(244, 67, 54, 0.15)',
-                                  border: '1px solid #f44336',
-                                  color: '#ff5252',
-                                  fontSize: '0.6rem',
-                                  fontWeight: 700,
-                                  padding: '0.35rem 0.6rem',
-                                  borderRadius: '3px',
-                                  cursor: 'pointer',
-                                  textTransform: 'uppercase',
-                                  transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.25)'}
-                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.15)'}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Fixture Inspection */}
-                      {selectedElement.type === 'fixture' && (() => {
-                        const fixId = selectedElement.id;
-                        const fixture = session.elements.fixtures.find(f => f.id === fixId);
-                        if (!fixture) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Fixture not found</div>;
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.65rem' }}>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Element:</span> <strong style={{ color: 'var(--accent-light)' }}>Fixture #{fixture.id}</strong></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Layer:</span> <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '80px' }}>{fixture.layer}</span></div>
-                              <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-muted)' }}>Block:</span> <span className="mono" style={{ color: 'var(--accent-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '160px' }}>{fixture.blockName || 'None'}</span></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Coords:</span> <span className="mono">({fixture.x.toFixed(1)}, {fixture.y.toFixed(1)})</span></div>
-                              <div>
-                                <span style={{ color: 'var(--ink-muted)' }}>Class:</span>{' '}
-                                <strong style={{ color: '#2196f3', textTransform: 'uppercase' }}>
-                                  {fixture.type}
-                                </strong>
-                              </div>
-                            </div>
-
-                            {/* Reclassify Buttons & Other Actions */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.25rem' }}>
-                              <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.6rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reclassify:</span>
-                                {(['toilet', 'sink', 'tub', 'other'] as const).map(t => (
-                                  <button
-                                    key={t}
-                                    onClick={() => handleReclassifyFixture(fixture.id, t)}
-                                    style={{
-                                      backgroundColor: fixture.type === t ? 'var(--accent)' : 'var(--paper-dark)',
-                                      border: `1px solid ${fixture.type === t ? 'var(--accent-light)' : 'var(--ink-disabled)'}`,
-                                      color: fixture.type === t ? '#fff' : 'var(--ink-muted)',
-                                      fontSize: '0.55rem',
-                                      fontWeight: 700,
-                                      padding: '0.2rem 0.4rem',
-                                      borderRadius: '2px',
-                                      cursor: 'pointer',
-                                      textTransform: 'uppercase',
-                                      transition: 'all 0.15s'
-                                    }}
-                                  >
-                                    {t}
-                                  </button>
-                                ))}
-                              </div>
-                              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                <button
-                                  onClick={() => handleConfirmElement('fixture', fixture.id)}
-                                  style={{
-                                    flex: 1,
-                                    backgroundColor: 'rgba(75, 160, 70, 0.15)',
-                                    border: '1px solid var(--accent)',
-                                    color: 'var(--accent-light)',
-                                    fontSize: '0.6rem',
-                                    fontWeight: 700,
-                                    padding: '0.35rem',
-                                    borderRadius: '3px',
-                                    cursor: 'pointer',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.02em',
-                                    transition: 'all 0.15s'
-                                  }}
-                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
-                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
-                                >
-                                  Confirm Fixture
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteElement('fixture', fixture.id)}
-                                  style={{
-                                    backgroundColor: 'rgba(244, 67, 54, 0.15)',
-                                    border: '1px solid #f44336',
-                                    color: '#ff5252',
-                                    fontSize: '0.6rem',
-                                    fontWeight: 700,
-                                    padding: '0.35rem 0.6rem',
-                                    borderRadius: '3px',
-                                    cursor: 'pointer',
-                                    textTransform: 'uppercase',
-                                    transition: 'all 0.15s'
-                                  }}
-                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.25)'}
-                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.15)'}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Exception Inspection */}
-                      {selectedElement.type === 'exception' && (() => {
-                        const excId = selectedElement.id;
-                        const exc = session.exceptions.find(e => e.id === excId);
-                        if (!exc) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Exception not found</div>;
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.65rem' }}>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Type:</span> <strong style={{ color: '#f44336', textTransform: 'uppercase' }}>{exc.type}</strong></div>
-                              <div><span style={{ color: 'var(--ink-muted)' }}>Title:</span> <span style={{ color: '#ff5252', fontWeight: 600 }}>{exc.title}</span></div>
-                              <p style={{ color: 'var(--ink-muted)', fontSize: '0.62rem', margin: 0, lineHeight: 1.3 }}>{exc.description}</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
-                              <button
-                                onClick={() => handleResolveException(exc.id)}
-                                style={{
-                                  flex: 1,
-                                  backgroundColor: 'rgba(75, 160, 70, 0.15)',
-                                  border: '1px solid var(--accent)',
-                                  color: 'var(--accent-light)',
-                                  fontSize: '0.6rem',
-                                  fontWeight: 700,
-                                  padding: '0.35rem',
-                                  borderRadius: '3px',
-                                  cursor: 'pointer',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.02em',
-                                  transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
-                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
-                              >
-                                Resolve Exception
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
                   {/* AI CLASSIFIER TRIGGER CARD */}
                   <div style={{ padding: '1rem', borderBottom: '1px solid var(--ink-disabled)', flexShrink: 0 }}>
                     <button
@@ -2454,51 +2454,6 @@ HOW TO RESOLVE THIS:
                       ) : (
                         <div style={{ fontSize: '0.65rem', color: 'var(--accent-light)', fontWeight: 700, backgroundColor: 'rgba(75,160,70,0.06)', border: '1px solid rgba(75,160,70,0.2)', padding: '0.45rem', borderRadius: '4px' }}>
                           ✓ GRID layer mapped and verified.
-                        </div>
-                      )}
-
-                      {/* Wet Zone/Toilet Audit failures list */}
-                      {session.exceptions.filter(e => e.type === 'missing-toilet' && !e.resolved).length > 0 && (
-                        <div style={{
-                          backgroundColor: 'rgba(154, 178, 199, 0.06)',
-                          border: '1px solid var(--ink-disabled)',
-                          borderRadius: '4px',
-                          padding: '0.55rem',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.35rem'
-                        }}>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            🔍 Toilet Audit Review Queue
-                          </div>
-                          <p style={{ fontSize: '0.58rem', color: 'var(--ink-muted)', lineHeight: 1.25, margin: 0 }}>
-                            Plumbing elements are marked for manual validation. Select items on the canvas or queue to verify.
-                          </p>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                            {session.exceptions.filter(e => e.type === 'missing-toilet' && !e.resolved).map(exc => (
-                              <div
-                                key={exc.id}
-                                onClick={() => {
-                                  if (exc.location) setFocusedCoordinates(exc.location);
-                                  if (typeof exc.refId === 'number') {
-                                    setSelectedElement({ type: 'fixture', id: exc.refId });
-                                  }
-                                }}
-                                style={{
-                                  fontSize: '0.58rem',
-                                  color: 'var(--accent-light)',
-                                  borderLeft: '2px solid var(--ink-muted)',
-                                  paddingLeft: '0.35rem',
-                                  cursor: 'pointer',
-                                  transition: 'color 0.1s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                                onMouseLeave={e => e.currentTarget.style.color = 'var(--accent-light)'}
-                              >
-                                At ({exc.location?.x.toFixed(0)}, {exc.location?.y.toFixed(0)}): {exc.title}
-                              </div>
-                            ))}
-                          </div>
                         </div>
                       )}
 
