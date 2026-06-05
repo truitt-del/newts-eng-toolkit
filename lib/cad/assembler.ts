@@ -81,14 +81,23 @@ export function buildDefaultMappings(dxf: ParsedDXF): MappingDictionary {
     if (h.patternName) {
       const key = `hatch-pattern:${h.patternName}`;
       if (!mappings[key]) {
-        const isSolid = h.patternName.toLowerCase().includes('solid') || h.patternName.toLowerCase().includes('ansi31');
+        const lName = h.patternName.toLowerCase();
+        const isPoche = lName.includes('solid') || lName.includes('ansi31') || lName.includes('ansi37');
+        
+        let bearing = false;
+        if (lName.includes('ansi37') || lName.includes('ansi31')) {
+          bearing = true;
+        } else if (lName.includes('solid')) {
+          bearing = false; // SOLID defaults to non-bearing
+        }
+
         mappings[key] = {
           sourceType: 'hatch-pattern',
           sourceName: h.patternName,
-          canonicalCategory: isSolid ? 'POCHE' : 'JUNK',
+          canonicalCategory: isPoche ? 'POCHE' : 'JUNK',
           attributes: {
-            bearing: isSolid,
-            material: isSolid ? 'wood' : 'none',
+            bearing,
+            material: isPoche ? 'wood' : 'none',
             height: 'full'
           },
           provenance: 'deterministic',
@@ -763,13 +772,6 @@ export function assembleWalls(
           bearing = hpMap.attributes.bearing ?? bearing;
           material = hpMap.attributes.material ?? 'wood';
           height = hpMap.attributes.height ?? 'full';
-        } else {
-          // Default fallbacks
-          const lPat = matchedHatchPattern.toLowerCase();
-          if (lPat.includes('solid') || lPat.includes('ansi31')) {
-            bearing = true;
-            material = 'wood';
-          }
         }
       }
 

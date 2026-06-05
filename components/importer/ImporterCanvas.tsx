@@ -33,6 +33,8 @@ interface ImporterCanvasProps {
   stairs?: StairInstance[];
   exceptions?: ExceptionItem[];
   focusedCoordinates?: { x: number; y: number } | null;
+  selectedElement?: { type: 'wall' | 'fixture' | 'opening' | 'exception'; id: string | number } | null;
+  onSelectElement?: (el: { type: 'wall' | 'fixture' | 'opening' | 'exception'; id: string | number } | null) => void;
 }
 
 interface ViewBox {
@@ -62,7 +64,9 @@ export default function ImporterCanvas({
   rooms = [],
   stairs = [],
   exceptions = [],
-  focusedCoordinates = null
+  focusedCoordinates = null,
+  selectedElement = null,
+  onSelectElement
 }: ImporterCanvasProps) {
   const [viewBox, setViewBox] = useState<ViewBox | null>(null);
   const [originalViewBox, setOriginalViewBox] = useState<ViewBox | null>(null);
@@ -182,6 +186,11 @@ export default function ImporterCanvas({
     if ((calibrationStep === 1 || calibrationStep === 3) && onDxfClick && mousePos) {
       onDxfClick(mousePos.x, mousePos.y);
       return;
+    }
+
+    // Clear selection if background is clicked directly
+    if (e.target === e.currentTarget) {
+      onSelectElement?.(null);
     }
 
     setDragging(true);
@@ -425,20 +434,39 @@ export default function ImporterCanvas({
           {/* Render Assembled Closed Wall Polygons with Poché attributes */}
           {walls.map((w) => {
             const pts = w.vertices.map(v => `${v.x},${-v.y}`).join(' ');
+            const isSelected = selectedElement?.type === 'wall' && selectedElement?.id === w.id;
             const fill = w.bearing ? 'rgba(75, 160, 70, 0.35)' : 'rgba(33, 150, 243, 0.18)';
-            const stroke = w.bearing ? 'rgba(75, 160, 70, 0.9)' : 'rgba(33, 150, 243, 0.8)';
+            const stroke = isSelected ? 'rgba(255, 145, 0, 0.95)' : (w.bearing ? 'rgba(75, 160, 70, 0.9)' : 'rgba(33, 150, 243, 0.8)');
             return (
-              <polygon
-                key={`wall-poly-${w.id}`}
-                points={pts}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth={strokeWidth * 1.6}
-                vectorEffect="non-scaling-stroke"
-                style={{ cursor: 'pointer' }}
-              >
-                <title>{`Wall ${w.id} (${w.thickness.toFixed(1)}" thickness, bearing: ${w.bearing})`}</title>
-              </polygon>
+              <g key={`wall-group-${w.id}`}>
+                <polygon
+                  points={pts}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={isSelected ? strokeWidth * 2.5 : strokeWidth * 1.6}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectElement?.({ type: 'wall', id: w.id });
+                  }}
+                >
+                  <title>{`Wall ${w.id} (${w.thickness.toFixed(1)}" thickness, bearing: ${w.bearing})`}</title>
+                </polygon>
+                {isSelected && (
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke="rgba(255, 145, 0, 0.95)"
+                    strokeWidth={strokeWidth * 3.0}
+                    strokeDasharray="4 2"
+                    vectorEffect="non-scaling-stroke"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <animate attributeName="stroke-opacity" values="0.4;1.0;0.4" dur="1.2s" repeatCount="indefinite" />
+                  </polygon>
+                )}
+              </g>
             );
           })}
 
@@ -475,9 +503,17 @@ export default function ImporterCanvas({
           {/* Render Door and Window Openings */}
           {openings.map((o) => {
             const isDoor = o.type === 'door';
-            const color = isDoor ? '#ff2a2a' : '#03a9f4';
+            const isSelected = selectedElement?.type === 'opening' && selectedElement?.id === o.id;
+            const color = isSelected ? 'rgba(255, 145, 0, 0.95)' : (isDoor ? '#ff2a2a' : '#03a9f4');
             return (
-              <g key={`opening-node-${o.id}`}>
+              <g
+                key={`opening-node-${o.id}`}
+                style={{ cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectElement?.({ type: 'opening', id: o.id });
+                }}
+              >
                 {/* Visual marker line representing the opening lateral run */}
                 <circle
                   cx={o.x}
@@ -500,18 +536,41 @@ export default function ImporterCanvas({
                 >
                   {isDoor ? 'DOOR' : 'WIN'} {Math.round(o.width)}&quot;
                 </text>
+                {isSelected && (
+                  <circle
+                    cx={o.x}
+                    cy={-o.y}
+                    r={Math.max(4, o.width / 2) + 4}
+                    fill="none"
+                    stroke="rgba(255, 145, 0, 0.95)"
+                    strokeWidth={strokeWidth * 2}
+                    strokeDasharray="3 1"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <animate attributeName="stroke-opacity" values="0.4;1.0;0.4" dur="1.2s" repeatCount="indefinite" />
+                  </circle>
+                )}
               </g>
             );
           })}
 
           {/* Render Plumbing Fixtures */}
           {fixtures.map((f) => {
+            const isSelected = selectedElement?.type === 'fixture' && selectedElement?.id === f.id;
             let color = '#9c27b0'; // purple (other)
             if (f.type === 'toilet') color = '#2196f3'; // blue
             if (f.type === 'sink') color = '#00bcd4'; // cyan
             if (f.type === 'tub') color = '#ff5722'; // orange-red for tubs/showers
+            if (isSelected) color = 'rgba(255, 145, 0, 0.95)';
             return (
-              <g key={`fixture-svg-${f.id}`}>
+              <g
+                key={`fixture-svg-${f.id}`}
+                style={{ cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectElement?.({ type: 'fixture', id: f.id });
+                }}
+              >
                 <circle
                   cx={f.x}
                   cy={-f.y}
@@ -531,6 +590,20 @@ export default function ImporterCanvas({
                 >
                   {f.type.toUpperCase()}
                 </text>
+                {isSelected && (
+                  <circle
+                    cx={f.x}
+                    cy={-f.y}
+                    r={Math.max(4, viewBox ? viewBox.w / 120 : 6) + 4}
+                    fill="none"
+                    stroke="rgba(255, 145, 0, 0.95)"
+                    strokeWidth={strokeWidth * 2}
+                    strokeDasharray="3 1"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <animate attributeName="stroke-opacity" values="0.4;1.0;0.4" dur="1.2s" repeatCount="indefinite" />
+                  </circle>
+                )}
               </g>
             );
           })}

@@ -19,7 +19,7 @@ import {
 } from '@/lib/cad/sessionStore';
 import ImporterCanvas from '@/components/importer/ImporterCanvas';
 import { calculateAffineTransform } from '@/lib/cad/calibration';
-import { buildDefaultMappings, assembleWalls } from '@/lib/cad/assembler';
+import { buildDefaultMappings, assembleWalls, getPolygonCentroid } from '@/lib/cad/assembler';
 import { detectStairs } from '@/lib/cad/stairDetector';
 import { parseRoomLabel } from '@/lib/cad/mtextParser';
 import { bboxOf, findWallSegments, ClassifiedWall } from '@/lib/dxf/analyzer';
@@ -127,6 +127,7 @@ export default function ImporterPage() {
   const [focusedCoordinates, setFocusedCoordinates] = useState<{ x: number; y: number } | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [signoffs, setSignoffs] = useState<Record<string, boolean>>({});
+  const [selectedElement, setSelectedElement] = useState<{ type: 'wall' | 'fixture' | 'opening' | 'exception'; id: string | number } | null>(null);
 
   const runCompilation = async (currentSession: ImporterSession, overrideMappings?: MappingDictionary) => {
     if (!currentSession.dxfData) return;
@@ -145,11 +146,33 @@ export default function ImporterPage() {
       maxWallAreaSqFt: currentSession.tolerances.maxWallAreaSqFt
     };
 
-    const { walls, openings, exceptions: baseExceptions } = assembleWalls(
+    const { walls: baseWalls, openings, exceptions: baseExceptions } = assembleWalls(
       currentSession.dxfData,
       tolerancesInput,
       mappings
     );
+
+    // Apply manual overrides to walls (coordinate stable via centroid match < 12.0)
+    const walls: ClosedWallPolygon[] = [];
+    const manualWalls = currentSession.manualOverrides?.walls || [];
+    baseWalls.forEach(wall => {
+      const centroid = getPolygonCentroid(wall.vertices);
+      const override = manualWalls.find(w => {
+        const dx = w.centroidX - centroid.x;
+        const dy = w.centroidY - centroid.y;
+        return Math.sqrt(dx * dx + dy * dy) < 12.0;
+      });
+
+      if (override) {
+        if (override.deleted) {
+          return; // Filter out/skip deleted wall
+        }
+        if (override.bearing !== undefined) {
+          wall.bearing = override.bearing;
+        }
+      }
+      walls.push(wall);
+    });
 
     const stairs = detectStairs(
       currentSession.dxfData,
@@ -190,7 +213,7 @@ export default function ImporterPage() {
       }
     });
 
-    const fixtures: Fixture[] = [];
+    const baseFixtures: Fixture[] = [];
     let fixIdSeq = 1;
     currentSession.dxfData.inserts.forEach(ins => {
       const lKey = `layer:${ins.layer}`;
@@ -206,7 +229,7 @@ export default function ImporterPage() {
         } else if (n.includes('tub') || n.includes('bath') || n.includes('shower')) {
           type = 'tub';
         }
-        fixtures.push({
+        baseFixtures.push({
           id: fixIdSeq++,
           type,
           layer: ins.layer,
@@ -215,6 +238,27 @@ export default function ImporterPage() {
           blockName: ins.blockName
         });
       }
+    });
+
+    // Apply manual overrides to fixtures (coordinate stable via exact/close match < 1.0)
+    const fixtures: Fixture[] = [];
+    const manualFixtures = currentSession.manualOverrides?.fixtures || [];
+    baseFixtures.forEach(fix => {
+      const override = manualFixtures.find(f => {
+        const dx = f.x - fix.x;
+        const dy = f.y - fix.y;
+        return Math.sqrt(dx * dx + dy * dy) < 1.0;
+      });
+
+      if (override) {
+        if (override.deleted) {
+          return; // Filter out/skip deleted fixture
+        }
+        if (override.type !== undefined) {
+          fix.type = override.type;
+        }
+      }
+      fixtures.push(fix);
     });
 
     const missingToiletFixes = fixtures.filter(f => f.type === 'sink' || f.type === 'tub');
@@ -248,6 +292,34 @@ export default function ImporterPage() {
       });
     });
 
+    // Suppress exceptions belonging to deleted walls or fixtures
+    const activeWallIds = new Set(walls.map(w => w.id));
+    const activeFixtureIds = new Set(fixtures.map(f => f.id));
+    const filteredExceptions = exceptions.filter(e => {
+      if (e.refId && typeof e.refId === 'number') {
+        if (e.type === 'missing-toilet') {
+          return activeFixtureIds.has(e.refId);
+        } else if (e.id.startsWith('exception_complex_wall_')) {
+          return activeWallIds.has(e.refId);
+        }
+      }
+      return true;
+    });
+
+    // Preserve resolution status of exceptions across compilations
+    const previouslyResolvedIds = new Set(
+      (currentSession.exceptions || [])
+        .filter(e => e.resolved)
+        .map(e => e.id)
+    );
+
+    const finalExceptions = filteredExceptions.map(e => {
+      if (previouslyResolvedIds.has(e.id)) {
+        return { ...e, resolved: true };
+      }
+      return e;
+    });
+
     const updatedSession: ImporterSession = {
       ...currentSession,
       mappings,
@@ -258,7 +330,7 @@ export default function ImporterPage() {
         rooms,
         stairs
       },
-      exceptions,
+      exceptions: finalExceptions,
       lastUpdated: Date.now()
     };
 
@@ -347,6 +419,177 @@ export default function ImporterPage() {
     setSession(updated);
   };
 
+  const handleToggleWallBearing = async (wallId: number) => {
+    if (!session) return;
+    const wall = session.elements.walls.find(w => w.id === wallId);
+    if (!wall) return;
+
+    const centroid = getPolygonCentroid(wall.vertices);
+    const existingOverrides = session.manualOverrides || {};
+    const wallsOverrides = existingOverrides.walls ? [...existingOverrides.walls] : [];
+
+    // Find if an override already exists for this wall (by centroid distance)
+    const existingIdx = wallsOverrides.findIndex(w => {
+      const dx = w.centroidX - centroid.x;
+      const dy = w.centroidY - centroid.y;
+      return Math.sqrt(dx * dx + dy * dy) < 12.0;
+    });
+
+    const newBearing = !wall.bearing;
+
+    if (existingIdx !== -1) {
+      wallsOverrides[existingIdx] = {
+        ...wallsOverrides[existingIdx],
+        bearing: newBearing
+      };
+    } else {
+      wallsOverrides.push({
+        centroidX: centroid.x,
+        centroidY: centroid.y,
+        bearing: newBearing
+      });
+    }
+
+    const updatedSession = {
+      ...session,
+      manualOverrides: {
+        ...existingOverrides,
+        walls: wallsOverrides
+      }
+    };
+
+    await runCompilation(updatedSession);
+  };
+
+  const handleDeleteElement = async (type: 'wall' | 'fixture', id: number) => {
+    if (!session) return;
+    const existingOverrides = session.manualOverrides || {};
+
+    if (type === 'wall') {
+      const wall = session.elements.walls.find(w => w.id === id);
+      if (!wall) return;
+      const centroid = getPolygonCentroid(wall.vertices);
+      const wallsOverrides = existingOverrides.walls ? [...existingOverrides.walls] : [];
+
+      const existingIdx = wallsOverrides.findIndex(w => {
+        const dx = w.centroidX - centroid.x;
+        const dy = w.centroidY - centroid.y;
+        return Math.sqrt(dx * dx + dy * dy) < 12.0;
+      });
+
+      if (existingIdx !== -1) {
+        wallsOverrides[existingIdx] = {
+          ...wallsOverrides[existingIdx],
+          deleted: true
+        };
+      } else {
+        wallsOverrides.push({
+          centroidX: centroid.x,
+          centroidY: centroid.y,
+          deleted: true
+        });
+      }
+
+      const updatedSession = {
+        ...session,
+        manualOverrides: {
+          ...existingOverrides,
+          walls: wallsOverrides
+        }
+      };
+      
+      setSelectedElement(null); // Clear selection since it's deleted
+      await runCompilation(updatedSession);
+
+    } else if (type === 'fixture') {
+      const fix = session.elements.fixtures.find(f => f.id === id);
+      if (!fix) return;
+      const fixturesOverrides = existingOverrides.fixtures ? [...existingOverrides.fixtures] : [];
+
+      const existingIdx = fixturesOverrides.findIndex(f => {
+        const dx = f.x - fix.x;
+        const dy = f.y - fix.y;
+        return Math.sqrt(dx * dx + dy * dy) < 1.0;
+      });
+
+      if (existingIdx !== -1) {
+        fixturesOverrides[existingIdx] = {
+          ...fixturesOverrides[existingIdx],
+          deleted: true
+        };
+      } else {
+        fixturesOverrides.push({
+          x: fix.x,
+          y: fix.y,
+          deleted: true
+        });
+      }
+
+      const updatedSession = {
+        ...session,
+        manualOverrides: {
+          ...existingOverrides,
+          fixtures: fixturesOverrides
+        }
+      };
+
+      setSelectedElement(null); // Clear selection since it's deleted
+      await runCompilation(updatedSession);
+    }
+  };
+
+  const handleReclassifyFixture = async (fixtureId: number, type: Fixture['type']) => {
+    if (!session) return;
+    const fix = session.elements.fixtures.find(f => f.id === fixtureId);
+    if (!fix) return;
+
+    const existingOverrides = session.manualOverrides || {};
+    const fixturesOverrides = existingOverrides.fixtures ? [...existingOverrides.fixtures] : [];
+
+    const existingIdx = fixturesOverrides.findIndex(f => {
+      const dx = f.x - fix.x;
+      const dy = f.y - fix.y;
+      return Math.sqrt(dx * dx + dy * dy) < 1.0;
+    });
+
+    if (existingIdx !== -1) {
+      fixturesOverrides[existingIdx] = {
+        ...fixturesOverrides[existingIdx],
+        type
+      };
+    } else {
+      fixturesOverrides.push({
+        x: fix.x,
+        y: fix.y,
+        type
+      });
+    }
+
+    const updatedSession = {
+      ...session,
+      manualOverrides: {
+        ...existingOverrides,
+        fixtures: fixturesOverrides
+      }
+    };
+
+    await runCompilation(updatedSession);
+  };
+
+  const handleConfirmElement = async (type: 'wall' | 'fixture', id: number) => {
+    if (!session) return;
+    // Confirming an element resolves any exception associated with that element.
+    const updatedExceptions = session.exceptions.map(e => {
+      if (e.refId === id) {
+        return { ...e, resolved: true };
+      }
+      return e;
+    });
+    const updated = { ...session, exceptions: updatedExceptions };
+    await saveSession(updated);
+    setSession(updated);
+  };
+
   // Restore active session on mount
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [calibrationStep, setCalibrationStep] = useState(0); // 0 (none), 1 (DXF 1), 2 (PDF 1), 3 (DXF 2), 4 (PDF 2)
@@ -363,7 +606,7 @@ export default function ImporterPage() {
     wMin: 3.0,
     wMax: 12.0,
     maxBBoxFt: 400,
-    maxWallVertices: 40,
+    maxWallVertices: 60,
     maxWallAreaSqFt: 50
   });
 
@@ -1174,7 +1417,7 @@ HOW TO RESOLVE THIS:
                             max="100"
                             step="5"
                             value={tolerances.maxWallVertices}
-                            onChange={e => handleToleranceChange('maxWallVertices', parseInt(e.target.value) || 40)}
+                            onChange={e => handleToleranceChange('maxWallVertices', parseInt(e.target.value) || 60)}
                             style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
                           />
                         </div>
@@ -1479,6 +1722,285 @@ HOW TO RESOLVE THIS:
               {session.currentStep === 2 && (
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                   
+                  {/* PROPERTIES INSPECTOR CARD */}
+                  {selectedElement && (
+                    <div style={{
+                      padding: '1rem',
+                      borderBottom: '1px solid var(--ink-disabled)',
+                      backgroundColor: 'rgba(255, 145, 0, 0.05)',
+                      flexShrink: 0
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div style={{
+                          fontSize: '0.72rem',
+                          textTransform: 'uppercase',
+                          color: 'var(--accent-light)',
+                          fontWeight: 700,
+                          letterSpacing: '0.05em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem'
+                        }}>
+                          <span style={{
+                            display: 'inline-block',
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--accent)',
+                            animation: 'pulse 1.5s infinite'
+                          }}></span>
+                          Properties Inspector
+                        </div>
+                        <button
+                          onClick={() => setSelectedElement(null)}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: 'var(--ink-muted)',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            padding: '0.1rem 0.3rem'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--ink-muted)'}
+                        >
+                          ✕ Close
+                        </button>
+                      </div>
+
+                      {/* Wall Inspection */}
+                      {selectedElement.type === 'wall' && (() => {
+                        const wallId = selectedElement.id;
+                        const wall = session.elements.walls.find(w => w.id === wallId);
+                        if (!wall) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Wall not found</div>;
+                        const centroid = getPolygonCentroid(wall.vertices);
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.65rem' }}>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Element:</span> <strong style={{ color: 'var(--accent-light)' }}>Wall #{wall.id}</strong></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Layer:</span> <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '80px' }}>{wall.layer}</span></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Thickness:</span> <span className="mono">{(wall.thickness).toFixed(1)}"</span></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Area:</span> <span className="mono">{(wall.area / 144).toFixed(1)} sq ft</span></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Vertices:</span> <span className="mono">{wall.vertices.length}</span></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Centroid:</span> <span className="mono">({centroid.x.toFixed(0)}, {centroid.y.toFixed(0)})</span></div>
+                              <div style={{ gridColumn: 'span 2' }}>
+                                <span style={{ color: 'var(--ink-muted)' }}>Class:</span>{' '}
+                                <strong style={{ color: wall.bearing ? '#4caf50' : '#2196f3' }}>
+                                  {wall.bearing ? 'Structural (Bearing)' : 'Partition (Non-Bearing)'}
+                                </strong>
+                              </div>
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                              <button
+                                onClick={() => handleToggleWallBearing(wall.id)}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: wall.bearing ? 'rgba(33, 150, 243, 0.15)' : 'rgba(76, 175, 80, 0.15)',
+                                  border: `1px solid ${wall.bearing ? '#2196f3' : '#4caf50'}`,
+                                  color: wall.bearing ? '#2196f3' : '#4caf50',
+                                  fontSize: '0.6rem',
+                                  fontWeight: 700,
+                                  padding: '0.35rem',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.02em',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.backgroundColor = wall.bearing ? 'rgba(33, 150, 243, 0.25)' : 'rgba(76, 175, 80, 0.25)';
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.backgroundColor = wall.bearing ? 'rgba(33, 150, 243, 0.15)' : 'rgba(76, 175, 80, 0.15)';
+                                }}
+                              >
+                                Toggle Bearing
+                              </button>
+                              <button
+                                onClick={() => handleConfirmElement('wall', wall.id)}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: 'rgba(75, 160, 70, 0.15)',
+                                  border: '1px solid var(--accent)',
+                                  color: 'var(--accent-light)',
+                                  fontSize: '0.6rem',
+                                  fontWeight: 700,
+                                  padding: '0.35rem',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.02em',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
+                              >
+                                Confirm Layout
+                              </button>
+                              <button
+                                onClick={() => handleDeleteElement('wall', wall.id)}
+                                style={{
+                                  backgroundColor: 'rgba(244, 67, 54, 0.15)',
+                                  border: '1px solid #f44336',
+                                  color: '#ff5252',
+                                  fontSize: '0.6rem',
+                                  fontWeight: 700,
+                                  padding: '0.35rem 0.6rem',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.25)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.15)'}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Fixture Inspection */}
+                      {selectedElement.type === 'fixture' && (() => {
+                        const fixId = selectedElement.id;
+                        const fixture = session.elements.fixtures.find(f => f.id === fixId);
+                        if (!fixture) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Fixture not found</div>;
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', fontSize: '0.65rem' }}>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Element:</span> <strong style={{ color: 'var(--accent-light)' }}>Fixture #{fixture.id}</strong></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Layer:</span> <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '80px' }}>{fixture.layer}</span></div>
+                              <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-muted)' }}>Block:</span> <span className="mono" style={{ color: 'var(--accent-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '160px' }}>{fixture.blockName || 'None'}</span></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Coords:</span> <span className="mono">({fixture.x.toFixed(1)}, {fixture.y.toFixed(1)})</span></div>
+                              <div>
+                                <span style={{ color: 'var(--ink-muted)' }}>Class:</span>{' '}
+                                <strong style={{ color: '#2196f3', textTransform: 'uppercase' }}>
+                                  {fixture.type}
+                                </strong>
+                              </div>
+                            </div>
+
+                            {/* Reclassify Buttons & Other Actions */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.25rem' }}>
+                              <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.6rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reclassify:</span>
+                                {(['toilet', 'sink', 'tub', 'other'] as const).map(t => (
+                                  <button
+                                    key={t}
+                                    onClick={() => handleReclassifyFixture(fixture.id, t)}
+                                    style={{
+                                      backgroundColor: fixture.type === t ? 'var(--accent)' : 'var(--paper-dark)',
+                                      border: `1px solid ${fixture.type === t ? 'var(--accent-light)' : 'var(--ink-disabled)'}`,
+                                      color: fixture.type === t ? '#fff' : 'var(--ink-muted)',
+                                      fontSize: '0.55rem',
+                                      fontWeight: 700,
+                                      padding: '0.2rem 0.4rem',
+                                      borderRadius: '2px',
+                                      cursor: 'pointer',
+                                      textTransform: 'uppercase',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
+                                    {t}
+                                  </button>
+                                ))}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                <button
+                                  onClick={() => handleConfirmElement('fixture', fixture.id)}
+                                  style={{
+                                    flex: 1,
+                                    backgroundColor: 'rgba(75, 160, 70, 0.15)',
+                                    border: '1px solid var(--accent)',
+                                    color: 'var(--accent-light)',
+                                    fontSize: '0.6rem',
+                                    fontWeight: 700,
+                                    padding: '0.35rem',
+                                    borderRadius: '3px',
+                                    cursor: 'pointer',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.02em',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
+                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
+                                >
+                                  Confirm Fixture
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteElement('fixture', fixture.id)}
+                                  style={{
+                                    backgroundColor: 'rgba(244, 67, 54, 0.15)',
+                                    border: '1px solid #f44336',
+                                    color: '#ff5252',
+                                    fontSize: '0.6rem',
+                                    fontWeight: 700,
+                                    padding: '0.35rem 0.6rem',
+                                    borderRadius: '3px',
+                                    cursor: 'pointer',
+                                    textTransform: 'uppercase',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.25)'}
+                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.15)'}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Exception Inspection */}
+                      {selectedElement.type === 'exception' && (() => {
+                        const excId = selectedElement.id;
+                        const exc = session.exceptions.find(e => e.id === excId);
+                        if (!exc) return <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)' }}>Exception not found</div>;
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.65rem' }}>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Type:</span> <strong style={{ color: '#f44336', textTransform: 'uppercase' }}>{exc.type}</strong></div>
+                              <div><span style={{ color: 'var(--ink-muted)' }}>Title:</span> <span style={{ color: '#ff5252', fontWeight: 600 }}>{exc.title}</span></div>
+                              <p style={{ color: 'var(--ink-muted)', fontSize: '0.62rem', margin: 0, lineHeight: 1.3 }}>{exc.description}</p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                              <button
+                                onClick={() => handleResolveException(exc.id)}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: 'rgba(75, 160, 70, 0.15)',
+                                  border: '1px solid var(--accent)',
+                                  color: 'var(--accent-light)',
+                                  fontSize: '0.6rem',
+                                  fontWeight: 700,
+                                  padding: '0.35rem',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.02em',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.25)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(75, 160, 70, 0.15)'}
+                              >
+                                Resolve Exception
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {/* AI CLASSIFIER TRIGGER CARD */}
                   <div style={{ padding: '1rem', borderBottom: '1px solid var(--ink-disabled)', flexShrink: 0 }}>
                     <button
@@ -1696,20 +2218,49 @@ HOW TO RESOLVE THIS:
                       {session.exceptions.filter(e => !e.resolved).map(exc => (
                         <div
                           key={exc.id}
-                          onClick={() => exc.location && setFocusedCoordinates(exc.location)}
+                          onClick={() => {
+                            if (exc.location) setFocusedCoordinates(exc.location);
+                            if (exc.type === 'missing-toilet' && typeof exc.refId === 'number') {
+                              setSelectedElement({ type: 'fixture', id: exc.refId });
+                            } else if (exc.id.startsWith('exception_complex_wall_') && typeof exc.refId === 'number') {
+                              setSelectedElement({ type: 'wall', id: exc.refId });
+                            } else {
+                              setSelectedElement({ type: 'exception', id: exc.id });
+                            }
+                          }}
                           style={{
-                            backgroundColor: 'rgba(244, 67, 54, 0.05)',
-                            border: '1px solid rgba(244, 67, 54, 0.25)',
+                            backgroundColor: (selectedElement?.type === 'exception' && selectedElement?.id === exc.id) ||
+                                            (exc.type === 'missing-toilet' && selectedElement?.type === 'fixture' && selectedElement?.id === exc.refId) ||
+                                            (exc.id.startsWith('exception_complex_wall_') && selectedElement?.type === 'wall' && selectedElement?.id === exc.refId)
+                                              ? 'rgba(255, 145, 0, 0.15)'
+                                              : 'rgba(244, 67, 54, 0.05)',
+                            border: (selectedElement?.type === 'exception' && selectedElement?.id === exc.id) ||
+                                    (exc.type === 'missing-toilet' && selectedElement?.type === 'fixture' && selectedElement?.id === exc.refId) ||
+                                    (exc.id.startsWith('exception_complex_wall_') && selectedElement?.type === 'wall' && selectedElement?.id === exc.refId)
+                                      ? '1px solid rgba(255, 145, 0, 0.8)'
+                                      : '1px solid rgba(244, 67, 54, 0.25)',
                             borderRadius: '4px',
                             padding: '0.5rem',
                             cursor: 'pointer',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '0.2rem',
-                            transition: 'background-color 0.1s'
+                            transition: 'all 0.15s ease'
                           }}
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.08)'}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.05)'}
+                          onMouseEnter={e => {
+                            const isSel = (selectedElement?.type === 'exception' && selectedElement?.id === exc.id) ||
+                                          (exc.type === 'missing-toilet' && selectedElement?.type === 'fixture' && selectedElement?.id === exc.refId) ||
+                                          (exc.id.startsWith('exception_complex_wall_') && selectedElement?.type === 'wall' && selectedElement?.id === exc.refId);
+                            if (!isSel) {
+                              e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.08)';
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            const isSel = (selectedElement?.type === 'exception' && selectedElement?.id === exc.id) ||
+                                          (exc.type === 'missing-toilet' && selectedElement?.type === 'fixture' && selectedElement?.id === exc.refId) ||
+                                          (exc.id.startsWith('exception_complex_wall_') && selectedElement?.type === 'wall' && selectedElement?.id === exc.refId);
+                            e.currentTarget.style.backgroundColor = isSel ? 'rgba(255, 145, 0, 0.15)' : 'rgba(244, 67, 54, 0.05)';
+                          }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#f44336' }}>{exc.title}</span>
@@ -1909,26 +2460,40 @@ HOW TO RESOLVE THIS:
                       {/* Wet Zone/Toilet Audit failures list */}
                       {session.exceptions.filter(e => e.type === 'missing-toilet' && !e.resolved).length > 0 && (
                         <div style={{
-                          backgroundColor: 'rgba(244, 67, 54, 0.08)',
-                          border: '1px solid rgba(244, 67, 54, 0.4)',
+                          backgroundColor: 'rgba(154, 178, 199, 0.06)',
+                          border: '1px solid var(--ink-disabled)',
                           borderRadius: '4px',
                           padding: '0.55rem',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '0.35rem'
                         }}>
-                          <div style={{ fontSize: '0.65rem', color: '#f44336', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            ⚠️ Toilet Audit Failure Warning
+                          <div style={{ fontSize: '0.65rem', color: 'var(--ink-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            🔍 Toilet Audit Review Queue
                           </div>
-                          <p style={{ fontSize: '0.58rem', color: 'var(--ink-muted)', lineHeight: 1.25 }}>
-                            Plumbing zones were detected without toilets in close proximity. Click exception points on canvas to inspect visually.
+                          <p style={{ fontSize: '0.58rem', color: 'var(--ink-muted)', lineHeight: 1.25, margin: 0 }}>
+                            Plumbing elements are marked for manual validation. Select items on the canvas or queue to verify.
                           </p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                             {session.exceptions.filter(e => e.type === 'missing-toilet' && !e.resolved).map(exc => (
                               <div
                                 key={exc.id}
-                                onClick={() => exc.location && setFocusedCoordinates(exc.location)}
-                                style={{ fontSize: '0.58rem', color: '#fff', borderLeft: '2px solid #f44336', paddingLeft: '0.35rem', cursor: 'pointer' }}
+                                onClick={() => {
+                                  if (exc.location) setFocusedCoordinates(exc.location);
+                                  if (typeof exc.refId === 'number') {
+                                    setSelectedElement({ type: 'fixture', id: exc.refId });
+                                  }
+                                }}
+                                style={{
+                                  fontSize: '0.58rem',
+                                  color: 'var(--accent-light)',
+                                  borderLeft: '2px solid var(--ink-muted)',
+                                  paddingLeft: '0.35rem',
+                                  cursor: 'pointer',
+                                  transition: 'color 0.1s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                                onMouseLeave={e => e.currentTarget.style.color = 'var(--accent-light)'}
                               >
                                 At ({exc.location?.x.toFixed(0)}, {exc.location?.y.toFixed(0)}): {exc.title}
                               </div>
@@ -2227,6 +2792,8 @@ HOW TO RESOLVE THIS:
                         stairs={session.elements?.stairs || []}
                         exceptions={session.exceptions || []}
                         focusedCoordinates={focusedCoordinates}
+                        selectedElement={selectedElement}
+                        onSelectElement={setSelectedElement}
                       />
                     </div>
                   </div>
@@ -2252,6 +2819,8 @@ HOW TO RESOLVE THIS:
                   stairs={session.elements?.stairs || []}
                   exceptions={session.exceptions || []}
                   focusedCoordinates={focusedCoordinates}
+                  selectedElement={selectedElement}
+                  onSelectElement={setSelectedElement}
                 />
               </main>
             )}

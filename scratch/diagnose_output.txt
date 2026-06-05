@@ -1,0 +1,230 @@
+﻿=== ANALYZING ALL POCHE HATCHES IN THE DXF ===
+Total hatches in DXF: 31
+Hatch 0: Layer="0" (Category=JUNK), Pattern="ANSI31", BoundaryPointsCount=5
+  Bounding Box: (0.0, 0.0) to (0.2, 0.4)
+Hatch 1: Layer="0" (Category=JUNK), Pattern="ANSI31", BoundaryPointsCount=6
+  Bounding Box: (0.0, -0.2) to (0.4, 0.2)
+Hatch 2: Layer="0" (Category=JUNK), Pattern="ANSI31", BoundaryPointsCount=5
+  Bounding Box: (0.0, -0.4) to (0.2, -0.0)
+Hatch 3: Layer="0" (Category=JUNK), Pattern="SOLID", BoundaryPointsCount=6
+  Bounding Box: (-1.4, -0.4) to (0.0, 0.4)
+Hatch 4: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-246.8, -37.6) to (-210.3, -32.1)
+Hatch 5: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=12
+  Bounding Box: (-432.3, 78.9) to (-372.3, 107.9)
+Hatch 6: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-300.3, 102.4) to (-240.8, 107.9)
+Hatch 7: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-192.8, 102.4) to (-90.3, 107.9)
+Hatch 8: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=12
+  Bounding Box: (5.7, 102.4) to (71.2, 119.9)
+Hatch 9: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=12
+  Bounding Box: (65.7, 191.9) to (95.7, 263.9)
+Hatch 10: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (167.7, 258.4) to (252.2, 263.9)
+Hatch 11: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=20
+  Bounding Box: (255.7, -0.1) to (347.7, 263.9)
+Hatch 12: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=56
+  Bounding Box: (35.9, -252.1) to (219.7, 86.4)
+Hatch 13: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (342.2, -75.1) to (347.7, -36.1)
+Hatch 14: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=12
+  Bounding Box: (302.7, -252.1) to (347.7, -147.1)
+Hatch 15: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=16
+  Bounding Box: (-180.3, -312.1) to (-138.3, -198.6)
+Hatch 16: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-102.3, -204.1) to (-60.1, -198.6)
+Hatch 17: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-324.3, -312.1) to (-252.3, -306.6)
+Hatch 18: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=12
+  Bounding Box: (-432.3, -312.1) to (-396.3, -221.1)
+Hatch 19: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=16
+  Bounding Box: (-432.3, -191.1) to (-330.3, -133.6)
+Hatch 20: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-432.3, -85.6) to (-426.8, -53.1)
+Hatch 21: Layer="1-POCHE" (Category=POCHE), Pattern="ANSI37", BoundaryPointsCount=8
+  Bounding Box: (-432.3, -23.1) to (-426.8, 48.9)
+Hatch 22: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=16
+  Bounding Box: (-426.8, -82.6) to (-323.3, -76.1)
+Hatch 23: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=20
+  Bounding Box: (-342.6, -173.6) to (-323.3, -112.6)
+Hatch 24: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=20
+  Bounding Box: (-250.3, -43.1) to (-206.8, 34.9)
+Hatch 25: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=44
+  Bounding Box: (-293.3, -103.6) to (-146.3, 102.4)
+Hatch 26: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=16
+  Bounding Box: (-293.3, -306.6) to (-283.8, -142.1)
+Hatch 27: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=34
+  Bounding Box: (-253.8, -198.6) to (-146.3, -142.1)
+Hatch 28: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=18
+  Bounding Box: (280.1, 17.9) to (289.3, 62.1)
+Hatch 29: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=12
+  Bounding Box: (306.6, 79.4) to (342.2, 89.9)
+Hatch 30: Layer="1-POCHE" (Category=POCHE), Pattern="SOLID", BoundaryPointsCount=12
+  Bounding Box: (173.7, 85.0) to (257.1, 89.9)
+
+=== RUNNING POCHE OVERLAP OVER EACH ASSEMBLED WALL ===
+
+Wall ID: 1 | Layer: "1-WALL" | Vertices: 33 | Thickness: 5.19 in | Area: 24.90 sq ft
+  Total samples inside wall: 2
+  Overlapping samples: 2 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 12 (Layer: "1-POCHE", Pattern: "ANSI37"): 2 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 2 | Layer: "1-WALL" | Vertices: 6 | Thickness: 5.30 in | Area: 5.52 sq ft
+  Total samples inside wall: 10
+  Overlapping samples: 10 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 14 (Layer: "1-POCHE", Pattern: "ANSI37"): 10 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 3 | Layer: "1-WALL" | Vertices: 10 | Thickness: 5.42 in | Area: 14.99 sq ft
+  Total samples inside wall: 0
+  Overlapping samples: 0 (Ratio: 0.0%)
+  Matched Hatches:
+  -> Final Bearing Classification: NON-BEARING
+
+Wall ID: 4 | Layer: "1-WALL" | Vertices: 4 | Thickness: 5.16 in | Area: 3.23 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 10 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 5 | Layer: "1-WALL" | Vertices: 6 | Thickness: 5.20 in | Area: 3.69 sq ft
+  Total samples inside wall: 20
+  Overlapping samples: 20 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 9 (Layer: "1-POCHE", Pattern: "ANSI37"): 20 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 6 | Layer: "1-WALL" | Vertices: 6 | Thickness: 5.14 in | Area: 2.96 sq ft
+  Total samples inside wall: 30
+  Overlapping samples: 30 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 8 (Layer: "1-POCHE", Pattern: "ANSI37"): 30 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 7 | Layer: "1-WALL" | Vertices: 4 | Thickness: 5.22 in | Area: 3.91 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 7 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 8 | Layer: "1-WALL" | Vertices: 4 | Thickness: 5.03 in | Area: 2.27 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 6 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 9 | Layer: "1-WALL" | Vertices: 6 | Thickness: 5.16 in | Area: 3.19 sq ft
+  Total samples inside wall: 28
+  Overlapping samples: 28 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 5 (Layer: "1-POCHE", Pattern: "ANSI37"): 28 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 10 | Layer: "1-WALL" | Vertices: 4 | Thickness: 5.11 in | Area: 2.75 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 21 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 11 | Layer: "1-WALL" | Vertices: 4 | Thickness: 4.70 in | Area: 1.24 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 20 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 12 | Layer: "1-WALL" | Vertices: 8 | Thickness: 5.31 in | Area: 5.88 sq ft
+  Total samples inside wall: 10
+  Overlapping samples: 10 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 19 (Layer: "1-POCHE", Pattern: "ANSI37"): 10 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 13 | Layer: "1-WALL" | Vertices: 6 | Thickness: 5.26 in | Area: 4.64 sq ft
+  Total samples inside wall: 10
+  Overlapping samples: 10 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 18 (Layer: "1-POCHE", Pattern: "ANSI37"): 10 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 14 | Layer: "1-WALL" | Vertices: 4 | Thickness: 5.11 in | Area: 2.75 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 17 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 15 | Layer: "1-WALL" | Vertices: 4 | Thickness: 4.87 in | Area: 1.61 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 16 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 16 | Layer: "1-WALL" | Vertices: 4 | Thickness: 4.82 in | Area: 1.49 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 100 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 13 (Layer: "1-POCHE", Pattern: "ANSI37"): 100 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 17 | Layer: "1-WALL" | Vertices: 8 | Thickness: 3.43 in | Area: 4.14 sq ft
+  Total samples inside wall: 40
+  Overlapping samples: 40 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 26 (Layer: "1-POCHE", Pattern: "SOLID"): 40 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 18 | Layer: "1-WALL" | Vertices: 25 | Thickness: 3.58 in | Area: 13.36 sq ft
+  Total samples inside wall: 0
+  Overlapping samples: 0 (Ratio: 0.0%)
+  Matched Hatches:
+  -> Final Bearing Classification: NON-BEARING
+
+Wall ID: 19 | Layer: "1-WALL" | Vertices: 10 | Thickness: 3.35 in | Area: 1.87 sq ft
+  Total samples inside wall: 20
+  Overlapping samples: 20 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 23 (Layer: "1-POCHE", Pattern: "SOLID"): 20 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 20 | Layer: "1-WALL" | Vertices: 8 | Thickness: 3.39 in | Area: 2.59 sq ft
+  Total samples inside wall: 50
+  Overlapping samples: 50 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 22 (Layer: "1-POCHE", Pattern: "SOLID"): 50 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 21 | Layer: "1-WALL" | Vertices: 4 | Thickness: 3.20 in | Area: 0.91 sq ft
+  Total samples inside wall: 100
+  Overlapping samples: 0 (Ratio: 0.0%)
+  Matched Hatches:
+  -> Final Bearing Classification: NON-BEARING
+
+Wall ID: 22 | Layer: "1-WALL" | Vertices: 10 | Thickness: 3.40 in | Area: 2.94 sq ft
+  Total samples inside wall: 0
+  Overlapping samples: 0 (Ratio: 0.0%)
+  Matched Hatches:
+  -> Final Bearing Classification: NON-BEARING
+
+Wall ID: 23 | Layer: "1-WALL" | Vertices: 9 | Thickness: 3.25 in | Area: 1.15 sq ft
+  Total samples inside wall: 44
+  Overlapping samples: 44 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 28 (Layer: "1-POCHE", Pattern: "SOLID"): 44 samples
+  -> Final Bearing Classification: BEARING
+
+Wall ID: 24 | Layer: "1-WALL" | Vertices: 6 | Thickness: 3.20 in | Area: 0.91 sq ft
+  Total samples inside wall: 34
+  Overlapping samples: 34 (Ratio: 100.0%)
+  Matched Hatches:
+    - Hatch 29 (Layer: "1-POCHE", Pattern: "SOLID"): 34 samples
+  -> Final Bearing Classification: BEARING

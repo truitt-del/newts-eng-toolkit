@@ -90,6 +90,25 @@ export interface MappingEntry {
 
 export type MappingDictionary = Record<string, MappingEntry>;
 
+export interface ManualWallOverride {
+  centroidX: number;
+  centroidY: number;
+  bearing?: boolean;
+  deleted?: boolean;
+}
+
+export interface ManualFixtureOverride {
+  x: number;
+  y: number;
+  type?: 'toilet' | 'sink' | 'tub' | 'other';
+  deleted?: boolean;
+}
+
+export interface ManualOverrides {
+  walls?: ManualWallOverride[];
+  fixtures?: ManualFixtureOverride[];
+}
+
 export interface ImporterSession {
   id: string;
   fileName: string;
@@ -123,7 +142,9 @@ export interface ImporterSession {
     maxWallVertices: number; // Maximum allowed vertices for a wall loop
     maxWallAreaSqFt: number; // Maximum allowed area for a wall loop in sq ft
   };
+  manualOverrides?: ManualOverrides;
 }
+
 
 const SESSION_KEY_PREFIX = 'archs-importer-session-';
 
