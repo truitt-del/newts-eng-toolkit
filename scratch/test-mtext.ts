@@ -48,6 +48,39 @@ function runSyntheticMTextTests() {
         dimensions: null,
         ceilingHeight: null
       }
+    },
+    {
+      name: 'Real Vectorworks MTEXT - Garage',
+      raw: `{\\LGARAGE }{\\H0.75x;\\LCONC}{\\H1x;\\L\\P}{\\H0.75x;\\l22'-7" x 21'-7" x 9'}`,
+      expectedClean: "GARAGE CONC\n22'-7\" x 21'-7\" x 9'",
+      expectedLabel: {
+        roomName: 'GARAGE',
+        finish: 'CONC',
+        dimensions: "22'-7\" x 21'-7\"",
+        ceilingHeight: "9'"
+      }
+    },
+    {
+      name: 'Real Vectorworks MTEXT - M. Bath',
+      raw: `{\\LM. BATH }{\\H0.75x;\\LTILE}{\\H1x;\\L\\P}{\\H0.75x;\\l9'}`,
+      expectedClean: "M. BATH TILE\n9'",
+      expectedLabel: {
+        roomName: 'M. BATH',
+        finish: 'TILE',
+        dimensions: null,
+        ceilingHeight: "9'"
+      }
+    },
+    {
+      name: 'Real Vectorworks MTEXT - Kitchen',
+      raw: `{\\LKITCHEN }{\\H0.75x;\\LLAM}{\\H1x;\\L\\P}{\\H0.75x;\\l12'-0" x 14'-0" x 9'}`,
+      expectedClean: "KITCHEN LAM\n12'-0\" x 14'-0\" x 9'",
+      expectedLabel: {
+        roomName: 'KITCHEN',
+        finish: 'LAM',
+        dimensions: "12'-0\" x 14'-0\"",
+        ceilingHeight: "9'"
+      }
     }
   ];
 
@@ -60,19 +93,21 @@ function runSyntheticMTextTests() {
 
     console.log(`Raw MTEXT:      "${tc.raw}"`);
     console.log(`Cleaned Text:\n${actualClean.replace(/^/gm, '  > ')}`);
-    console.log(`Parsed Label:    Name="${actualLabel.roomName}" | Dim="${actualLabel.dimensions}" | Clg="${actualLabel.ceilingHeight}"`);
+    console.log(`Parsed Label:    Name="${actualLabel.roomName}" | Finish="${actualLabel.finish}" | Dim="${actualLabel.dimensions}" | Clg="${actualLabel.ceilingHeight}"`);
 
     const cleanMatch = actualClean === tc.expectedClean;
     const nameMatch = actualLabel.roomName === tc.expectedLabel.roomName;
+    const finishMatch = actualLabel.finish === (tc.expectedLabel as any).finish || (!actualLabel.finish && !(tc.expectedLabel as any).finish);
     const dimMatch = actualLabel.dimensions === tc.expectedLabel.dimensions;
     const clgMatch = actualLabel.ceilingHeight === tc.expectedLabel.ceilingHeight;
 
-    if (cleanMatch && nameMatch && dimMatch && clgMatch) {
+    if (cleanMatch && nameMatch && finishMatch && dimMatch && clgMatch) {
       console.log('Result: PASS');
     } else {
       console.log('Result: FAIL');
       if (!cleanMatch) console.log(`  - Cleaned text mismatch. Expected: "${tc.expectedClean}"`);
       if (!nameMatch) console.log(`  - Room Name mismatch. Expected: "${tc.expectedLabel.roomName}"`);
+      if (!finishMatch) console.log(`  - Finish mismatch. Expected: "${(tc.expectedLabel as any).finish}"`);
       if (!dimMatch) console.log(`  - Dimensions mismatch. Expected: "${tc.expectedLabel.dimensions}"`);
       if (!clgMatch) console.log(`  - Ceiling Height mismatch. Expected: "${tc.expectedLabel.ceilingHeight}"`);
       failed++;
@@ -101,21 +136,19 @@ function runRealDxfMTextTests() {
 
   console.log(`Real DXF Loaded. Total Text Entities: ${parsed.textEntities.length}`);
   
-  // Let's filter for text entities that are MTEXT and contain formatting symbols or room label indicators
-  const formattedEntities = parsed.textEntities.filter(e => {
-    return e.isMText && (e.text.includes('\\') || e.text.includes('{') || e.text.includes('CLG') || e.text.includes('x') || e.text.includes('X'));
-  });
+  // Let's filter for text entities on the '1-RMNAME' layer
+  const formattedEntities = parsed.textEntities.filter(e => e.layer === '1-RMNAME');
 
-  console.log(`Found ${formattedEntities.length} formatted/multi-line text candidates.`);
+  console.log(`Found ${formattedEntities.length} entities on 1-RMNAME.`);
   
-  console.log('\nShowing 10 parsed room/dimension labels from slightly_cleaned_archs.dxf:');
-  formattedEntities.slice(0, 10).forEach((ent, index) => {
+  console.log('\nShowing all parsed room labels from 1-RMNAME:');
+  formattedEntities.forEach((ent, index) => {
     const cleaned = cleanMText(ent.text);
     const parsedLabel = parseRoomLabel(ent.text);
     console.log(`\n  [${index + 1}] Layer: "${ent.layer}" | Pos: (${ent.x.toFixed(1)}, ${ent.y.toFixed(1)})`);
     console.log(`      Raw:     "${ent.text}"`);
     console.log(`      Cleaned: "${cleaned.replace(/\n/g, ' \\P ')}"`);
-    console.log(`      Parsed:  Name="${parsedLabel.roomName}" | Dim="${parsedLabel.dimensions}" | Clg="${parsedLabel.ceilingHeight}"`);
+    console.log(`      Parsed:  Name="${parsedLabel.roomName}" | Finish="${parsedLabel.finish}" | Dim="${parsedLabel.dimensions}" | Clg="${parsedLabel.ceilingHeight}"`);
   });
 }
 

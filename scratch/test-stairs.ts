@@ -185,6 +185,7 @@ function runRealDxfStairTests() {
       console.log(`    Tread Count:   ${s.treads} treads (${s.treads + 1} lines)`);
       console.log(`    Stair Width:   ${s.width.toFixed(1)}"`);
       console.log(`    Stair Length:  ${s.length.toFixed(1)}"`);
+      console.log(`    Source Layer:  ${s.layer}`);
       console.log(`    Confidence:    ${s.confidence.toUpperCase()}`);
     });
   } else {

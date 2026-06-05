@@ -148,6 +148,27 @@ export default function Home() {
     }
   }, []);
 
+  // Handoff listener for Archs Importer
+  useEffect(() => {
+    try {
+      const handoffWalls = localStorage.getItem('importer_handoff_walls');
+      const handoffFilename = localStorage.getItem('importer_handoff_filename');
+      const handoffDxf = localStorage.getItem('importer_handoff_dxf_data');
+      if (handoffWalls && handoffFilename) {
+        setWalls(JSON.parse(handoffWalls));
+        setFileName(handoffFilename);
+        if (handoffDxf) {
+          setFileStats(JSON.parse(handoffDxf));
+        }
+        localStorage.removeItem('importer_handoff_walls');
+        localStorage.removeItem('importer_handoff_filename');
+        localStorage.removeItem('importer_handoff_dxf_data');
+      }
+    } catch (e) {
+      console.error('Failed to parse importer handoff:', e);
+    }
+  }, []);
+
   const handleModelChange = (newModel: string) => {
     setModel(newModel);
     localStorage.setItem('model', newModel);

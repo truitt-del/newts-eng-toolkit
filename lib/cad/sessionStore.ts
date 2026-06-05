@@ -59,6 +59,7 @@ export interface StairInstance {
   length: number;
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   confidence: 'high' | 'medium' | 'low';
+  layer?: string;
 }
 
 export interface ExceptionItem {

@@ -26,7 +26,8 @@ export function detectStairs(
   const isStairLayer = (lyrName: string): boolean => {
     const key = `layer:${lyrName}`;
     const m = mappings[key];
-    return m ? m.canonicalCategory === 'STAIR' : false;
+    if (!m) return false;
+    return m.canonicalCategory === 'STAIR' || m.canonicalCategory === 'REVIEW';
   };
 
   // Extract all lines belonging to STAIR layers
@@ -253,7 +254,8 @@ export function detectStairs(
       width,
       length,
       bounds,
-      confidence
+      confidence,
+      layer: refLine.layer
     });
   });
 

@@ -20,8 +20,8 @@ export function cleanMText(raw: string): string {
   // Form: \ + (f, H, C, A, W, T, Q, p) + anything up to ';'
   s = s.replace(/\\[fHCAWTQp][^;]*;/gi, '');
 
-  // Remove formatting toggles: \L (underline on), \l (underline off), \O (overline on), \o (overline off)
-  s = s.replace(/\\[L|l|O|o]/g, '');
+  // Remove formatting toggles: \L (underline on), \l (underline off), \O (overline on), \o (overline off), \K (strikeout on), \k (strikeout off)
+  s = s.replace(/\\[LlOoKk]/g, '');
 
   // Remove nesting group braces: { and }
   s = s.replace(/[{}]/g, '');
@@ -37,6 +37,7 @@ export function cleanMText(raw: string): string {
 
 export interface ParsedRoomLabel {
   roomName: string;
+  finish: string | null;
   dimensions: string | null;
   ceilingHeight: string | null;
 }
@@ -53,8 +54,9 @@ export function parseRoomLabel(rawText: string): ParsedRoomLabel {
   let ceilingHeight: string | null = null;
 
   for (const line of lines) {
-    const isClg = /clg|ceiling|height|hgt/i.test(line) || /['-]\d+"?\s*c/i.test(line);
-    const isDim = /\d+['-]/i.test(line) && (line.toLowerCase().includes('x') || line.toLowerCase().includes('×') || /\d+\s*\*/.test(line));
+    const isSingleDim = /^\d+['-](?:0")?$/i.test(line.trim());
+    const isClg = /clg|ceiling|height|hgt/i.test(line) || /['-]\d+"?\s*c/i.test(line) || isSingleDim;
+    const isDim = /\d+['-]/i.test(line) && (line.toLowerCase().includes('x') || line.toLowerCase().includes('×') || /\d+\s*\*/.test(line)) && !isSingleDim;
 
     if (isClg) {
       // Extract clean ceiling height or use line as is
@@ -80,8 +82,31 @@ export function parseRoomLabel(rawText: string): ParsedRoomLabel {
     roomName = lines[0];
   }
 
+  // Split out floor finish from roomName if present
+  let finish: string | null = null;
+  const words = roomName.trim().split(/\s+/);
+  if (words.length > 1) {
+    const lastWord = words[words.length - 1];
+    if (/^(?:CONC|LAM|CAR|TILE|HW|WD|VINYL|PLAM|CPT)$/i.test(lastWord)) {
+      finish = lastWord.toUpperCase();
+      roomName = words.slice(0, words.length - 1).join(' ');
+    }
+  }
+
+  // Pull trailing height (e.g. x 9') off 3D dimension strings as ceiling height
+  if (dimensions) {
+    const parts = dimensions.split(/\s*(?:[xX×]|\*)\s*/);
+    if (parts.length === 3) {
+      dimensions = `${parts[0]} x ${parts[1]}`;
+      if (!ceilingHeight) {
+        ceilingHeight = parts[2];
+      }
+    }
+  }
+
   return {
     roomName: roomName.toUpperCase().replace(/\s+/g, ' ').trim(),
+    finish: finish ? finish.toUpperCase().trim() : null,
     dimensions: dimensions ? dimensions.trim() : null,
     ceilingHeight: ceilingHeight ? ceilingHeight.trim() : null
   };

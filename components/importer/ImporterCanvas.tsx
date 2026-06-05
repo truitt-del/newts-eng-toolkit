@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Vertex, LineEntity, Polyline, InsertEntity, TextEntity } from '@/lib/dxf/parser';
-import { ImporterSession } from '@/lib/cad/sessionStore';
+import { ImporterSession, ClosedWallPolygon, ExplicitOpening, Fixture, RoomInstance, StairInstance, ExceptionItem } from '@/lib/cad/sessionStore';
 import { getSvgTransformMatrixString } from '@/lib/cad/calibration';
+import { cleanMText } from '@/lib/cad/mtextParser';
 
 interface ImporterCanvasProps {
   polylines: Polyline[];
@@ -24,6 +25,14 @@ interface ImporterCanvasProps {
   calibDxfPt1?: { x: number; y: number } | null;
   calibDxfPt2?: { x: number; y: number } | null;
   onDxfClick?: (x: number, y: number) => void;
+  // Extra features for compiled layers
+  walls?: ClosedWallPolygon[];
+  openings?: ExplicitOpening[];
+  fixtures?: Fixture[];
+  rooms?: RoomInstance[];
+  stairs?: StairInstance[];
+  exceptions?: ExceptionItem[];
+  focusedCoordinates?: { x: number; y: number } | null;
 }
 
 interface ViewBox {
@@ -47,6 +56,13 @@ export default function ImporterCanvas({
   calibDxfPt1 = null,
   calibDxfPt2 = null,
   onDxfClick,
+  walls = [],
+  openings = [],
+  fixtures = [],
+  rooms = [],
+  stairs = [],
+  exceptions = [],
+  focusedCoordinates = null
 }: ImporterCanvasProps) {
   const [viewBox, setViewBox] = useState<ViewBox | null>(null);
   const [originalViewBox, setOriginalViewBox] = useState<ViewBox | null>(null);
@@ -54,6 +70,19 @@ export default function ImporterCanvas({
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Focus effect to center and zoom onto specific coordinates
+  useEffect(() => {
+    if (focusedCoordinates && viewBox) {
+      const zoomWindowSize = 300; // Physical width/height window size in native units
+      setViewBox({
+        x: focusedCoordinates.x - zoomWindowSize / 2,
+        y: -focusedCoordinates.y - zoomWindowSize / 2, // Flip Y for SVG space
+        w: zoomWindowSize,
+        h: zoomWindowSize
+      });
+    }
+  }, [focusedCoordinates]);
   const dragStart = useRef<{ x: number; y: number; vb: ViewBox } | null>(null);
 
   // Compute overall bounds and initialize ViewBox
@@ -368,9 +397,9 @@ export default function ImporterCanvas({
                 y1={-l.y1}
                 x2={l.x2}
                 y2={-l.y2}
-                stroke={isWallLayer ? 'var(--accent)' : 'rgba(154, 178, 199, 0.4)'}
-                strokeWidth={isWallLayer ? strokeWidth * 1.5 : strokeWidth}
-                strokeOpacity={isWallLayer ? 0.9 : 0.5}
+                stroke={isWallLayer ? 'rgba(154, 178, 199, 0.3)' : 'rgba(154, 178, 199, 0.2)'}
+                strokeWidth={isWallLayer ? strokeWidth * 1.2 : strokeWidth}
+                strokeOpacity={0.4}
                 vectorEffect="non-scaling-stroke"
               />
             );
@@ -385,32 +414,221 @@ export default function ImporterCanvas({
                 key={`poly-${idx}`}
                 points={p.vertices.map(v => `${v.x},${-v.y}`).join(' ')}
                 fill="none"
-                stroke={isWallLayer ? 'var(--accent)' : 'rgba(154, 178, 199, 0.4)'}
-                strokeWidth={isWallLayer ? strokeWidth * 1.8 : strokeWidth}
-                strokeOpacity={isWallLayer ? 0.9 : 0.5}
+                stroke={isWallLayer ? 'rgba(154, 178, 199, 0.3)' : 'rgba(154, 178, 199, 0.2)'}
+                strokeWidth={isWallLayer ? strokeWidth * 1.5 : strokeWidth}
+                strokeOpacity={0.4}
                 vectorEffect="non-scaling-stroke"
               />
             );
           })}
 
-          {/* Render Text Entities as subtle nodes */}
-          {textEntities.map((t, idx) => {
-            const cleanText = t.text.replace(/[{}]|\\f[^;]+;|\\H[0-9.]+;/g, '').trim();
-            if (!cleanText) return null;
+          {/* Render Assembled Closed Wall Polygons with Poché attributes */}
+          {walls.map((w) => {
+            const pts = w.vertices.map(v => `${v.x},${-v.y}`).join(' ');
+            const fill = w.bearing ? 'rgba(75, 160, 70, 0.35)' : 'rgba(33, 150, 243, 0.18)';
+            const stroke = w.bearing ? 'rgba(75, 160, 70, 0.9)' : 'rgba(33, 150, 243, 0.8)';
             return (
-              <g key={`text-${idx}`} style={{ pointerEvents: 'none' }}>
+              <polygon
+                key={`wall-poly-${w.id}`}
+                points={pts}
+                fill={fill}
+                stroke={stroke}
+                strokeWidth={strokeWidth * 1.6}
+                vectorEffect="non-scaling-stroke"
+                style={{ cursor: 'pointer' }}
+              >
+                <title>{`Wall ${w.id} (${w.thickness.toFixed(1)}" thickness, bearing: ${w.bearing})`}</title>
+              </polygon>
+            );
+          })}
+
+          {/* Render Stair Group Boundaries */}
+          {stairs.map((s) => {
+            const isHigh = s.confidence === 'high';
+            return (
+              <g key={`stair-${s.id}`}>
+                <rect
+                  x={s.bounds.minX}
+                  y={-s.bounds.maxY}
+                  width={s.bounds.maxX - s.bounds.minX}
+                  height={s.bounds.maxY - s.bounds.minY}
+                  fill="rgba(255, 193, 7, 0.1)"
+                  stroke={isHigh ? '#ffc107' : 'rgba(255, 152, 0, 0.7)'}
+                  strokeWidth={strokeWidth * 1.5}
+                  strokeDasharray={isHigh ? undefined : '3 3'}
+                  vectorEffect="non-scaling-stroke"
+                />
                 <text
-                  x={t.x}
-                  y={-t.y}
-                  fontSize={labelSize}
-                  fill="var(--accent-light)"
-                  fillOpacity={0.85}
+                  x={(s.bounds.minX + s.bounds.maxX) / 2}
+                  y={-(s.bounds.minY + s.bounds.maxY) / 2}
+                  fontSize={labelSize * 0.7}
+                  fill="#ffc107"
+                  textAnchor="middle"
+                  style={{ fontFamily: 'var(--font-mono), monospace', fontWeight: 'bold' }}
+                >
+                  STAIRS ({s.treads} Tr)
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Render Door and Window Openings */}
+          {openings.map((o) => {
+            const isDoor = o.type === 'door';
+            const color = isDoor ? '#ff2a2a' : '#03a9f4';
+            return (
+              <g key={`opening-node-${o.id}`}>
+                {/* Visual marker line representing the opening lateral run */}
+                <circle
+                  cx={o.x}
+                  cy={-o.y}
+                  r={Math.max(4, o.width / 2)}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={strokeWidth * 2.5}
+                  strokeDasharray={isDoor ? undefined : '2 2'}
+                  vectorEffect="non-scaling-stroke"
+                  opacity={0.8}
+                />
+                <text
+                  x={o.x}
+                  y={-o.y - 6}
+                  fontSize={labelSize * 0.6}
+                  fill={color}
+                  textAnchor="middle"
+                  style={{ fontFamily: 'var(--font-mono), monospace', fontWeight: 600 }}
+                >
+                  {isDoor ? 'DOOR' : 'WIN'} {Math.round(o.width)}&quot;
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Render Plumbing Fixtures */}
+          {fixtures.map((f) => {
+            let color = '#9c27b0'; // purple (other)
+            if (f.type === 'toilet') color = '#2196f3'; // blue
+            if (f.type === 'sink') color = '#00bcd4'; // cyan
+            if (f.type === 'tub') color = '#ff5722'; // orange-red for tubs/showers
+            return (
+              <g key={`fixture-svg-${f.id}`}>
+                <circle
+                  cx={f.x}
+                  cy={-f.y}
+                  r={Math.max(4, viewBox ? viewBox.w / 120 : 6)}
+                  fill={color}
+                  stroke="#fff"
+                  strokeWidth={strokeWidth}
+                  style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))' }}
+                />
+                <text
+                  x={f.x}
+                  y={-f.y + (viewBox ? viewBox.w / 100 : 8) + 2}
+                  fontSize={labelSize * 0.65}
+                  fill={color}
+                  textAnchor="middle"
+                  style={{ fontFamily: 'var(--font-mono), monospace', fontWeight: 'bold' }}
+                >
+                  {f.type.toUpperCase()}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Render Parsed Room Labels */}
+          {rooms.map((r) => (
+            <g key={`room-label-svg-${r.id}`} style={{ pointerEvents: 'none' }}>
+              <rect
+                x={r.x - 45}
+                y={-r.y - labelSize * 0.8}
+                width="90"
+                height={labelSize * 1.8}
+                fill="rgba(17, 33, 50, 0.75)"
+                rx="2"
+                style={{ pointerEvents: 'none' }}
+              />
+              <text
+                x={r.x}
+                y={-r.y}
+                fontSize={labelSize * 0.9}
+                fill="#ffeb3b"
+                textAnchor="middle"
+                style={{
+                  fontFamily: "'Syne', sans-serif",
+                  fontWeight: 800,
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+                }}
+              >
+                {r.name}
+              </text>
+              {r.dimensions && (
+                <text
+                  x={r.x}
+                  y={-r.y + labelSize * 0.75}
+                  fontSize={labelSize * 0.6}
+                  fill="var(--ink-muted)"
+                  textAnchor="middle"
                   style={{
                     fontFamily: 'var(--font-mono), monospace',
                     fontWeight: 500,
                   }}
                 >
-                  {cleanText}
+                  {r.dimensions}
+                </text>
+              )}
+            </g>
+          ))}
+
+          {/* Render Pulsing Exception Markers */}
+          {exceptions.filter(e => !e.resolved && e.location).map((e) => (
+            <g key={`exc-ring-${e.id}`}>
+              <circle
+                cx={e.location!.x}
+                cy={-e.location!.y}
+                r="16"
+                fill="rgba(244, 67, 54, 0.15)"
+                stroke="#f44336"
+                strokeWidth="2"
+              >
+                <animate attributeName="r" values="10;20;10" dur="1.6s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.6s" repeatCount="indefinite" />
+              </circle>
+              <circle
+                cx={e.location!.x}
+                cy={-e.location!.y}
+                r="4"
+                fill="#f44336"
+              />
+            </g>
+          ))}
+
+          {/* Render Text Entities as subtle nodes (from unclassified review layers) */}
+          {textEntities.filter(t => {
+            const key = `layer:${t.layer}`;
+            // If the layer is already mapped to RMNAME, we don't double render it here
+            return !t.layer.toLowerCase().includes('rmname') && !t.layer.toLowerCase().includes('room');
+          }).map((t, idx) => {
+            const cleanText = cleanMText(t.text);
+            if (!cleanText) return null;
+            const lines = cleanText.split('\n');
+            return (
+              <g key={`text-${idx}`} style={{ pointerEvents: 'none' }}>
+                <text
+                  x={t.x}
+                  y={-t.y}
+                  fontSize={labelSize * 0.75}
+                  fill="rgba(154, 178, 199, 0.6)"
+                  fillOpacity={0.7}
+                  style={{
+                    fontFamily: 'var(--font-mono), monospace',
+                    fontWeight: 500,
+                  }}
+                >
+                  {lines.map((line, lIdx) => (
+                    <tspan key={lIdx} x={t.x} dy={lIdx === 0 ? 0 : labelSize * 1.0}>
+                      {line}
+                    </tspan>
+                  ))}
                 </text>
               </g>
             );
