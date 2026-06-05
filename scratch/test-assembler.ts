@@ -142,7 +142,7 @@ function runRealDxfTests() {
     wMin: 3.0,
     wMax: 12.0,
     maxBBoxFt: 400,
-    maxWallVertices: 30,
+    maxWallVertices: 40,
     maxWallAreaSqFt: 50
   };
 

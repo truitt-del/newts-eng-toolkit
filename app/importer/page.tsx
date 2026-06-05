@@ -363,7 +363,7 @@ export default function ImporterPage() {
     wMin: 3.0,
     wMax: 12.0,
     maxBBoxFt: 400,
-    maxWallVertices: 30,
+    maxWallVertices: 40,
     maxWallAreaSqFt: 50
   });
 
@@ -1174,7 +1174,7 @@ HOW TO RESOLVE THIS:
                             max="100"
                             step="5"
                             value={tolerances.maxWallVertices}
-                            onChange={e => handleToleranceChange('maxWallVertices', parseInt(e.target.value) || 30)}
+                            onChange={e => handleToleranceChange('maxWallVertices', parseInt(e.target.value) || 40)}
                             style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
                           />
                         </div>

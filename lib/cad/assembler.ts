@@ -536,6 +536,29 @@ export function getPolygonCentroid(poly: { x: number; y: number }[]): { x: numbe
 }
 
 /**
+ * Removes duplicate wall segments with identical or reversed endpoints.
+ */
+function deduplicateSegments(segments: Segment[]): Segment[] {
+  const seen = new Set<string>();
+  const unique: Segment[] = [];
+
+  for (const s of segments) {
+    let x1_val = s.x1, y1_val = s.y1, x2_val = s.x2, y2_val = s.y2;
+    // Normalise endpoint order
+    if (x1_val > x2_val || (Math.abs(x1_val - x2_val) < 1e-3 && y1_val > y2_val)) {
+      x1_val = s.x2; y1_val = s.y2;
+      x2_val = s.x1; y2_val = s.y1;
+    }
+    const key = `${x1_val.toFixed(3)},${y1_val.toFixed(3)}->${x2_val.toFixed(3)},${y2_val.toFixed(3)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(s);
+    }
+  }
+  return unique;
+}
+
+/**
  * The core assembly pipeline.
  * Decomposes lines & polylines, snaps, splits, prunes, bridges stubs,
  * extracts planar cycles, filters to wall polygons, and maps poché hatches.
@@ -594,13 +617,18 @@ export function assembleWalls(
     return { walls: [], openings: [], exceptions: [] };
   }
 
+  // Deduplicate initial wall segments to clean up input redundancies (e.g. duplicate lines in door/window frames)
+  const uniqueWallSegments = deduplicateSegments(wallSegments);
+
   // 2. Geometric cleanup pipeline
-  let processed = snapEndpoints(wallSegments, tolerances.snap);
+  let processed = snapEndpoints(uniqueWallSegments, tolerances.snap);
   processed = splitSegmentsAtIntersections(processed);
   processed = snapEndpoints(processed, tolerances.snap);
   processed = pruneDanglingEdges(processed, tolerances.prune);
   processed = addJambClosures(processed, tolerances.wMin, tolerances.wMax);
   processed = snapEndpoints(processed, tolerances.snap);
+  processed = deduplicateSegments(processed); // Deduplicate again to prevent snap/closure-induced duplicates
+
 
   // 3. Planar Cycle Extraction
   const cycles = extractPlanarCycles(processed);
