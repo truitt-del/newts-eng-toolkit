@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { parseDXF, ParsedDXF, LineEntity } from '@/lib/dxf/parser';
 import { processWalls, ClassifiedWall } from '@/lib/dxf/analyzer';
 import SvgCanvas, { LocusPoint } from '@/components/SvgCanvas';
@@ -377,12 +378,57 @@ export default function Home() {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--accent-light)', fontWeight: 800 }}>
-              NEWT'S TOOLKIT | STRUCTURAL SUITE
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--accent-light)', fontWeight: 800 }}>
+                NEWT'S TOOLKIT | STRUCTURAL SUITE
+              </div>
+              <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '0.15rem' }}>
+                Bearing Line Framer Sandbox
+              </h1>
             </div>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '0.15rem' }}>
-              Bearing Line Framer Sandbox
-            </h1>
+
+            {/* Top Navigation Tabs */}
+            <nav style={{ display: 'flex', gap: '0.25rem', marginLeft: '1.5rem', backgroundColor: 'var(--paper-dark)', border: '1px solid var(--ink-disabled)', padding: '0.2rem', borderRadius: '4px' }}>
+              <Link href="/" style={{
+                textDecoration: 'none',
+                padding: '0.35rem 0.85rem',
+                borderRadius: '3px',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                backgroundColor: 'var(--accent)',
+                color: 'var(--foreground)',
+                transition: 'all 0.1s ease-in-out'
+              }}>
+                Beam Framer
+              </Link>
+              <Link href="/importer" style={{
+                textDecoration: 'none',
+                padding: '0.35rem 0.85rem',
+                borderRadius: '3px',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                backgroundColor: 'transparent',
+                color: 'var(--ink-muted)',
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = 'var(--foreground)';
+                e.currentTarget.style.backgroundColor = 'var(--paper-light)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = 'var(--ink-muted)';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              >
+                Archs Importer
+              </Link>
+            </nav>
+          </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <label style={{
